@@ -45,10 +45,8 @@ export default class DebugDisplay extends RE.Component {
       this.memoryElement = null;
       this.trianglesElement = null;
       this.visibleTrianglesElement = null;
-      this.activeObjectsElement.remove();
       this.activeObjectsElement = null;
       this.drawCallsElement = null;
-      this.texturesElement.remove();
       this.geometriesElement = null;
       this.texturesElement = null;
       this.programsElement = null;

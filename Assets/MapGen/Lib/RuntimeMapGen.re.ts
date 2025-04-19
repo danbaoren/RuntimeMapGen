@@ -3725,7 +3725,7 @@ void main() {
 //=======================================================================================
 
     // docs
-    @RE.props.text() Docs: string = "https://github/";
+    @RE.props.text() Docs: string = "https://github.com/danbaoren/RuntimeMapGen";
     @RE.props.checkbox() View_Mode: boolean = true;
 
 

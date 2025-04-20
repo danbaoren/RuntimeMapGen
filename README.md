@@ -7,7 +7,8 @@
 
 </div>
 
-Fast, modular terrain deployment for WebGL/Three.js games using RogueEngine
+Fast, modular terrain deployment for WebGL/Three.js games using RogueEngine.
+Instantly convert heightmap images into immersive, playable environments.
 
 ---
 
@@ -19,7 +20,7 @@ Fast, modular terrain deployment for WebGL/Three.js games using RogueEngine
 
 - **Auto-Texturing Shader**: Dynamic material blending with KTX2 support.
 
-- **Level of Detail & Occlusion**: Two LOD tiers (High/Low) plus basic occlusion culling.
+- **Level of Detail & Occlusion**: Two LOD tiers (High/Low) plus occlusion culling.
 
 - **Foliage System**: Group-based foliage placement with per-group controls.
 

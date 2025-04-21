@@ -55,6 +55,7 @@
 
             [!] Improved faces discard which hided from camera (reduce triangles visibility as much as possible)
 
+            [!] Reduce Draw Calls (each chunks is a drawcall)
 
 
         KTX2 cmd commands:
@@ -81,6 +82,7 @@ import RMG_Export from './RMG_Export.re';
 import RMG_LoadingBar from './RMG_LoadingBar.re';
 import RMG_Navigation from './RMG_Navigation.re';
 import RMG_Collision from './RMG_Collision.re';
+import RMG_Shader from './RMG_Shader.re';
 
 
 
@@ -412,8 +414,8 @@ export default class RuntimeMapGen extends RE.Component {
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             // Initialize materials with loaded textures
-            this.lowDetailMaterial = await this.createMaterial(false);
-            this.highDetailMaterial = await this.createMaterial(true);
+            RMG_Shader.lowDetailMaterial = await RMG_Shader.createMaterial(false);
+            RMG_Shader.highDetailMaterial = await RMG_Shader.createMaterial(true);
 
             this.highRenderDistanceSquared = this.high_RenderDistance * this.high_RenderDistance;
             this.lowRenderDistanceSquared = this.low_RenderDistance * this.low_RenderDistance;
@@ -437,8 +439,6 @@ export default class RuntimeMapGen extends RE.Component {
             RE.Runtime.scene.remove();
         });
     }
-
- 
 
     async update() {
       this.updateCameras();
@@ -495,7 +495,7 @@ export default class RuntimeMapGen extends RE.Component {
         }
 
 
-      this.updateShaderUniforms();
+      RMG_Shader.updateShaderUniforms();
 
     }
 
@@ -547,7 +547,7 @@ export default class RuntimeMapGen extends RE.Component {
       clippingHeight?: number;
     }): string {return `${params.startX}_${params.startY}_${params.width}_${params.height}_${params.step || 1}_${params.lodFactor || 1}`;}
 
-    private async loadAllTextures(): Promise<void> {
+    public async loadAllTextures(): Promise<void> {
     const textureDetails = [
         { prop: this.sandTexture, filename: "sand.ktx2", target: 'sandTexture' },
         { prop: this.grassTexture, filename: "grass.ktx2", target: 'grassTexture' },
@@ -751,13 +751,13 @@ export default class RuntimeMapGen extends RE.Component {
                     }
                     if (now - group.userData.highTransitionStart >= transitionDelay) {
                         // Transition complete: show the high-detail mesh with its material
-                        highMesh.material = this.highDetailMaterial;
+                        highMesh.material = RMG_Shader.highDetailMaterial;
                         highMesh.visible = true;
                         if (lowMesh) lowMesh.visible = false;
                     } else {
                         // Transition ongoing: keep low-detail mesh visible
                         if (lowMesh) {
-                            lowMesh.material = this.lowDetailMaterial;
+                            lowMesh.material = RMG_Shader.lowDetailMaterial;
                             lowMesh.visible = true;
                         }
                         highMesh.visible = false;
@@ -766,7 +766,7 @@ export default class RuntimeMapGen extends RE.Component {
                     // If no high-detail mesh exists, queue generation and keep low mesh if available
                     this.addToHighDetailQueue(group, Math.sqrt(distanceSquared));
                     if (lowMesh) {
-                        lowMesh.material = this.lowDetailMaterial;
+                        lowMesh.material = RMG_Shader.lowDetailMaterial;
                         lowMesh.visible = true;
                     }
                 }
@@ -775,7 +775,7 @@ export default class RuntimeMapGen extends RE.Component {
                 group.userData.highTransitionStart = null;
                 // Use the low-detail mesh exclusively
                 if (lowMesh) {
-                    lowMesh.material = this.lowDetailMaterial;
+                    lowMesh.material = RMG_Shader.lowDetailMaterial;
                     lowMesh.visible = true;
                 } else {
                     this.activateChunk(group, Math.sqrt(distanceSquared));
@@ -1671,7 +1671,7 @@ export default class RuntimeMapGen extends RE.Component {
                     this.generateFoliageInstances(group, highGeometry, this.fSeed);
                 }
 
-                const material = this.highDetailMaterial;
+                const material = RMG_Shader.highDetailMaterial;
                 const highMesh = new THREE.Mesh(highGeometry, material);
                 highMesh.name = 'high';
                 highMesh.userData.cacheKey = cacheKey; // Store cache key
@@ -1744,7 +1744,7 @@ export default class RuntimeMapGen extends RE.Component {
             group.remove(existingLow);
         }
 
-        const material = this.lowDetailMaterial;
+        const material = RMG_Shader.lowDetailMaterial;
         const lowMesh = new THREE.Mesh(geometry, material);
         lowMesh.name = 'low';
         lowMesh.userData.cacheKey = cacheKey; // Store cache key
@@ -1933,10 +1933,6 @@ export default class RuntimeMapGen extends RE.Component {
             this.applyCliffModification(startX, startY, width, height, tileData);
         }
 
-        // Apply talus formation if enabled
-        //if (this.enableTalus) {
-        //    this.applyTalusFormation(startX, startY, width, height, heightData);
-        //}
     }
 
     private applyFractalNoise(startX: number, startY: number, width: number, height: number, tileData: Uint8ClampedArray) {
@@ -2389,148 +2385,6 @@ export default class RuntimeMapGen extends RE.Component {
         }
     }
 
-    /*
-    private applyTalusFormation(startX: number, startY: number, width: number, height: number, heightData: Uint8ClampedArray) {
-        const mapWidth = this.heightmapSize.width;
-        const tempHeights = new Float32Array(width * height);
-        const talusAmount = new Float32Array(width * height);
-
-        // Helper function to get height at a specific position
-        const getHeight = (x: number, y: number): number => {
-            if (x >= 0 && x < mapWidth && y >= 0 && y < this.heightmapSize.height) {
-                return heightData[(y * mapWidth + x) * 4];
-            }
-            return 0;
-        };
-
-        // First pass: Identify steep slopes and calculate initial talus amounts
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const worldX = startX + x;
-                const worldY = startY + y;
-                const idx = (worldY * mapWidth + worldX) * 4;
-                const localIdx = y * width + x;
-
-                // Calculate slope using neighboring points
-                const centerHeight = heightData[idx];
-                tempHeights[localIdx] = centerHeight;
-
-                // Calculate average slope in all directions
-                let maxSlope = 0;
-                for (let dy = -1; dy <= 1; dy++) {
-                    for (let dx = -1; dx <= 1; dx++) {
-                        if (dx === 0 && dy === 0) continue;
-                        const neighborHeight = getHeight(worldX + dx, worldY + dy);
-                        const slope = Math.abs(centerHeight - neighborHeight) /
-                                    Math.sqrt(dx * dx + dy * dy);
-                        maxSlope = Math.max(maxSlope, slope);
-                    }
-                }
-
-                // Normalize slope to 0-1 range
-                const normalizedSlope = maxSlope / 255;
-
-                // Calculate talus formation probability
-                if (normalizedSlope >= this.talusMinSlope && normalizedSlope <= this.talusMaxSlope) {
-                    // Generate noise for natural variation
-                    const noiseValue = this.seededPerlinNoise(
-                        worldX / (this.talusParticleSize * 2),
-                        worldY / (this.talusParticleSize * 2),
-                        this.talusSeed
-                    );
-
-                    // Calculate initial talus amount
-                    const slopeFactor = (normalizedSlope - this.talusMinSlope) /
-                                      (this.talusMaxSlope - this.talusMinSlope);
-                    const talusFactor = slopeFactor * this.talusAccumulationFactor *
-                                      (1 + noiseValue * this.talusNoiseFactor);
-                    talusAmount[localIdx] = talusFactor * this.talusParticleSize;
-                }
-            }
-        }
-
-        // Second pass: Distribute talus material
-        const spreadRadius = Math.ceil(this.talusSpreadDistance);
-        const stabilityThreshold = this.talusStability * 45; // Convert to degrees
-        const layeringNoise = new Float32Array(width * height);
-
-        // Generate layering noise
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const worldX = startX + x;
-                const worldY = startY + y;
-                layeringNoise[y * width + x] = this.seededPerlinNoise(
-                    worldX / (this.talusParticleSize * 4),
-                    worldY / (this.talusParticleSize * 4),
-                    this.talusSeed + 1000
-                );
-            }
-        }
-
-        // Distribute talus material
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const localIdx = y * width + x;
-                if (talusAmount[localIdx] <= 0) continue;
-
-                let materialToSpread = talusAmount[localIdx];
-                const sourceHeight = tempHeights[localIdx];
-
-                // Search for lower points within spread radius
-                for (let dy = -spreadRadius; dy <= spreadRadius; dy++) {
-                    for (let dx = -spreadRadius; dx <= spreadRadius; dx++) {
-                        if (dx === 0 && dy === 0) continue;
-                        const targetX = x + dx;
-                        const targetY = y + dy;
-                        if (targetX < 0 || targetX >= width || targetY < 0 || targetY >= height) continue;
-
-                        const targetIdx = targetY * width + targetX;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        if (distance > spreadRadius) continue;
-
-                        const targetHeight = tempHeights[targetIdx];
-                        if (targetHeight >= sourceHeight) continue;
-
-                        // Calculate slope to target
-                        const slope = Math.atan2(sourceHeight - targetHeight, distance) * 180 / Math.PI;
-                        if (slope < stabilityThreshold) continue;
-
-                        // Calculate material amount to deposit
-                        const depositFactor = (1 - distance / spreadRadius) *
-                                           (1 - this.talusCompression) *
-                                           (1 + layeringNoise[targetIdx] * this.talusLayering);
-                        const depositAmount = materialToSpread * depositFactor;
-
-                        // Update heights
-                        tempHeights[targetIdx] += depositAmount;
-                        materialToSpread -= depositAmount;
-
-                        if (materialToSpread <= 0) break;
-                    }
-                    if (materialToSpread <= 0) break;
-                }
-            }
-        }
-
-        // Final pass: Apply the modified heights
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const worldX = startX + x;
-                const worldY = startY + y;
-                const idx = (worldY * mapWidth + worldX) * 4;
-                const localIdx = y * width + x;
-
-                const finalHeight = Math.max(0, Math.min(255, Math.round(tempHeights[localIdx])));
-                heightData[idx] = finalHeight;
-                heightData[idx + 1] = finalHeight;
-                heightData[idx + 2] = finalHeight;
-                heightData[idx + 3] = 255;
-            }
-        }
-    }
-
-
-     */
     public async refreshTerrain(): Promise<void> {
 
         if (!RE.Runtime.isRunning) {return;}
@@ -2626,766 +2480,6 @@ export default class RuntimeMapGen extends RE.Component {
 
 
 
-//=======================================================================================
-//
-// #region SHADER / TEXTURING
-//
-//=======================================================================================
-
-
-    private vertexShader = `
-#include <common>
-#include <shadowmap_pars_vertex>
-varying vec2 vUv;
-varying vec3 vPosition;
-varying vec3 vWorldNormal;
-varying vec3 vWorldPosition;
-uniform float uvOffsetScale;
-uniform float uvRotationScale;
-uniform vec2 overallUvOffset;
-uniform float overallUvRotation;
-
-// Simple pseudo-random number generator
-float pseudoRand(vec2 st) {
-    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453);
-}
-
-void main() {
-    // Generate a random offset and rotation based on vertex position
-    vec2 randomVec = vec2(pseudoRand(position.xy * 10.0), pseudoRand(position.yz * 10.0));
-    float randomRotation = pseudoRand(position.xz * 10.0) * 3.14159 * uvRotationScale;
-
-    // Cache trigonometric evaluations for random rotation
-    float cosRandom = cos(randomRotation);
-    float sinRandom = sin(randomRotation);
-
-    vec2 uvOffset = randomVec * uvOffsetScale;
-
-    // Apply random rotation (caching rotated UV)
-    vec2 rotatedUVRandom = vec2(
-        uv.x * cosRandom - uv.y * sinRandom,
-        uv.x * sinRandom + uv.y * cosRandom
-    );
-
-    vec2 finalUV = rotatedUVRandom + uvOffset;
-
-    // Cache overall rotation sin and cosine
-    float cosOverall = cos(overallUvRotation);
-    float sinOverall = sin(overallUvRotation);
-
-    vec2 center = vec2(0.5, 0.5); // Center of the UV space
-    vec2 centeredUV = finalUV - center;
-    vec2 rotatedUVOverall = vec2(
-        centeredUV.x * cosOverall - centeredUV.y * sinOverall,
-        centeredUV.x * sinOverall + centeredUV.y * cosOverall
-    ) + center;
-
-    // Apply overall offset
-    vUv = rotatedUVOverall + overallUvOffset;
-
-    // Cache positions and matrix multiplication calculations
-    vPosition = position;
-    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-    mat3 normalMatrixWorld = transpose(inverse(mat3(modelMatrix)));
-    vWorldNormal = normalize(normalMatrixWorld * normal);
-
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-
-    #include <beginnormal_vertex>
-    #include <defaultnormal_vertex>
-    #include <begin_vertex>
-    #include <worldpos_vertex>
-    #include <shadowmap_vertex>
-}`;
-
-    private fragmentShader = `
-#include <common>
-#include <packing>
-#include <lights_pars_begin>
-#include <shadowmap_pars_fragment>
-#include <shadowmask_pars_fragment>
-
-uniform sampler2D sandTexture;
-uniform sampler2D grassTexture;
-uniform sampler2D stoneTexture;
-uniform sampler2D dirtTexture;
-uniform sampler2D snowTexture;
-uniform sampler2D aoTexture;
-uniform sampler2D heightmapTexture;
-uniform float sandRepeat;
-uniform float grassRepeat;
-uniform float stoneRepeat;
-uniform float dirtRepeat;
-uniform float snowRepeat;
-uniform float maxHeight;
-uniform float roughness;
-uniform float metalness;
-uniform vec3 ambientColor;
-uniform float diffuseIntensity;
-uniform float specularIntensity;
-uniform float envMapIntensity;
-uniform float aoIntensity;
-uniform float clippingHeight;
-uniform float cameraDistanceFactor;
-uniform vec3 fogColor;
-uniform float fogNear;
-uniform float fogFar;
-uniform float fogHeightMin;
-uniform float fogHeightMax;
-uniform float fogDensity;
-uniform vec2 gradientSeed;
-uniform vec2 heightmapSize;
-uniform vec3 terrainScale;
-uniform vec3 terrainOffset;
-uniform float sandSlopeStart;
-uniform float sandSlopeEnd;
-uniform float beachHeight;
-uniform float grassSlopeStart;
-uniform float grassSlopeEnd;
-uniform float stoneSlopeStart;
-uniform float stoneSlopeEnd;
-uniform float stoneSlopeIntensity;
-uniform float dirtSlopeStart;
-uniform float dirtSlopeEnd;
-uniform float dirtHeightStart;
-uniform float dirtHeightEnd;
-uniform float snowSlopeStart;
-uniform float snowSlopeEnd;
-uniform float snowHeightStart;
-uniform float snowHeightEnd;
-uniform float snowBlendSmoothness;
-uniform vec3 uSunlightDirection;
-uniform vec3 uSunlightColor;
-uniform float uSunlightIntensity;
-uniform vec3 uSkyColor;
-uniform vec3 uGroundColor;
-uniform float uHemisphereIntensity;
-uniform float BackcullingShader;
-uniform vec2 overallUvOffset;
-uniform float overallUvRotation;
-uniform float grassStoneInfluenceFactor;
-uniform vec2 dirtBetweenFactor;
-uniform float blendFactor;
-uniform float blendFrequency;
-uniform float blendAmplitude;
-uniform float blendSharpness;
-uniform float blobInfluence;
-uniform float blobDensity;
-uniform float blobScale;
-uniform float blobGrassOnStone;
-uniform float blobDirtOnStone;
-uniform float blobDirtOnGrass;
-uniform float textureScaleClose;
-uniform float textureScaleMid;
-uniform float textureScaleCloseDistance;
-uniform float textureScaleMidDistance;
-
-// Add new uniforms for octave noise
-uniform float octaveScale;
-uniform float octaveIntensity;
-uniform float octaveOctaves;
-uniform float octavePersistence;
-uniform float octaveLacunarity;
-uniform float octaveSeed;
-
-uniform float borderNoiseScale;
-uniform float borderNoiseIntensity;
-uniform float borderNoiseOctaves;
-uniform float borderNoisePersistence;
-uniform float borderNoiseLacunarity;
-uniform float borderNoiseSeed;
-
-uniform vec3 sandColorFilter;
-uniform vec3 grassColorFilter;
-uniform vec3 stoneColorFilter;
-uniform vec3 dirtColorFilter;
-uniform vec3 snowColorFilter;
-
-varying vec2 vUv;
-varying vec3 vPosition;
-varying vec3 vWorldNormal;
-varying vec3 vWorldPosition;
-
-// Required utility functions
-float hash3D(vec3 p) {
-    p = fract(p * vec3(443.8975, 397.2973, 491.1871));
-    p += dot(p.xyz, p.yzx + 19.19);
-    return fract(p.x * p.y * p.z);
-}
-
-float valueNoise3D(vec3 p) {
-    vec3 i = floor(p);
-    vec3 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-
-    float a = hash3D(i);
-    float b = hash3D(i + vec3(1.0, 0.0, 0.0));
-    float c = hash3D(i + vec3(0.0, 1.0, 0.0));
-    float d = hash3D(i + vec3(1.0, 1.0, 0.0));
-    float e = hash3D(i + vec3(0.0, 0.0, 1.0));
-    float f1 = hash3D(i + vec3(1.0, 0.0, 1.0));
-    float g = hash3D(i + vec3(0.0, 1.0, 1.0));
-    float h = hash3D(i + vec3(1.0, 1.0, 1.0));
-
-    float k0 = a;
-    float k1 = b - a;
-    float k2 = c - a;
-    float k3 = e - a;
-    float k4 = a - b - c + d;
-    float k5 = a - c - e + g;
-    float k6 = a - b - e + f1;
-    float k7 = -a + b + c - d + e - f1 - g + h;
-
-    return k0 + k1 * f.x + k2 * f.y + k3 * f.z + k4 * f.x * f.y + k5 * f.y * f.z + k6 * f.z * f.x + k7 * f.x * f.y * f.z;
-}
-
-float octaveNoise(vec3 p) {
-    float total = 0.0;
-    float frequency = 1.0;
-    float amplitude = 1.0;
-    float maxValue = 0.0;
-    
-    for(float i = 0.0; i < 8.0; i++) {
-        if(i >= octaveOctaves) break;
-        total += valueNoise3D((p * frequency + octaveSeed)) * amplitude;
-        maxValue += amplitude;
-        amplitude *= octavePersistence;
-        frequency *= octaveLacunarity;
-    }
-    
-    return total / maxValue;
-}
-
-// Border noise function
-float getBorderNoise(vec3 worldPos) {
-    vec3 noiseInput = worldPos / borderNoiseScale;
-    float total = 0.0;
-    float frequency = 1.0;
-    float amplitude = 1.0;
-    float maxValue = 0.0;
-    
-    for(float i = 0.0; i < 8.0; i++) {
-        if(i >= borderNoiseOctaves) break;
-        total += valueNoise3D((noiseInput * frequency + borderNoiseSeed)) * amplitude;
-        maxValue += amplitude;
-        amplitude *= borderNoisePersistence;
-        frequency *= borderNoiseLacunarity;
-    }
-    
-    return (total / maxValue) * borderNoiseIntensity;
-}
-
-// Modified weight calculation function
-float calculateTextureWeight(float baseWeight, vec3 worldPos) {
-    float noiseValue = octaveNoise(worldPos / octaveScale);
-    float borderNoise = getBorderNoise(worldPos);
-    
-    // Combine the base weight with both types of noise
-    float noisyWeight = baseWeight * (1.0 + noiseValue * octaveIntensity);
-    noisyWeight = noisyWeight * (1.0 + borderNoise);
-    
-    // Add extra noise to the transition boundaries
-    float transitionNoise = borderNoise * step(0.1, baseWeight) * step(baseWeight, 0.9);
-    noisyWeight += transitionNoise;
-    
-    return clamp(noisyWeight, 0.0, 1.0);
-}
-
-vec4 triplanarSample(sampler2D tex, vec3 pos, float repeat, float distanceFactor) {
-    vec2 uvX = pos.yz * repeat;
-    vec2 uvY = pos.xz * repeat;
-    vec2 uvZ = pos.xy * repeat;
-    float lodBias = clamp(distanceFactor * 0.5, 0.0, 4.0);
-    vec3 blending = pow(abs(vWorldNormal), vec3(4.0));
-    blending /= dot(blending, vec3(1.0));
-    vec4 texX = textureLod(tex, uvX, lodBias);
-    vec4 texY = textureLod(tex, uvY, lodBias);
-    vec4 texZ = textureLod(tex, uvZ, lodBias);
-    return texX * blending.x + texY * blending.y + texZ * blending.z;
-}
-
-float D_GGX(vec3 N, vec3 H, float roughness) {
-    float a = roughness * roughness;
-    float a2 = a * a;
-    float NdotH = max(dot(N, H), 0.0);
-    float NdotH2 = NdotH * NdotH;
-    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = 3.14159 * denom * denom;
-    return a2 / denom;
-}
-
-float G_Smith(vec3 N, vec3 V, vec3 L, float roughness) {
-    float NdotV = max(dot(N, V), 0.0) + 0.0001;
-    float NdotL = max(dot(N, L), 0.0) + 0.0001;
-    float a = roughness;
-    float a2 = a * a;
-    float lambdaV = NdotL * sqrt((-NdotV * a2 + NdotV) * NdotV + a2);
-    float lambdaL = NdotV * sqrt((-NdotL * a2 + NdotL) * NdotL + a2);
-    return 0.5 / max(lambdaV + NdotV, lambdaL + NdotL);
-}
-
-vec3 F_Schlick(float cosTheta, vec3 F0) {
-    return F0 + (vec3(1.0) - F0) * pow(1.0 - cosTheta, 5.0);
-}
-
-float getBlobWeight(vec3 worldPosition) {
-    vec2 noiseInput = vec2(worldPosition.x * blobDensity, worldPosition.z * blobDensity);
-    float noiseValue = valueNoise3D(vec3(noiseInput, 0.0));
-    float blob = smoothstep(0.0, blobScale, abs(noiseValue));
-    return blob * blobInfluence;
-}
-
-void main() {
-    vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
-    float dotProduct = dot(vWorldNormal, viewDirection);
-    float backcullingAngleRadians = BackcullingShader * 3.14159 / 180.0;
-    if (dotProduct < cos(backcullingAngleRadians)) {
-        discard;
-    }
-
-    float distanceToCamera = length(cameraPosition - vWorldPosition);
-    float lodFactor = clamp(distanceToCamera * cameraDistanceFactor, 0.0, 8.0);
-    float textureScale = distanceToCamera < textureScaleMidDistance ? textureScaleMid : 1.0;
-    if (distanceToCamera < textureScaleCloseDistance) {
-        textureScale = textureScaleClose;
-    }
-    if (vWorldPosition.y < clippingHeight) {
-        discard;
-    }
-
-    float h = clamp(vPosition.y / maxHeight, 0.0, 1.0);
-    float slope = 1.0 - dot(normalize(vWorldNormal), vec3(0.0, 1.0, 0.0));
-
-    // Calculate base weights with octave noise influence
-    float sandH = max(1.0 - smoothstep(0.2, 0.4, h), step(vPosition.y, beachHeight));
-    float sandS = 1.0 - smoothstep(sandSlopeStart, sandSlopeEnd, slope);
-    float sandWeight = calculateTextureWeight(sandH * sandS, vWorldPosition);
-
-    float grassH = smoothstep(0.2, 0.6, h) * (1.0 - smoothstep(0.7, 0.9, h));
-    float grassS = 1.0 - smoothstep(grassSlopeStart, grassSlopeEnd, slope);
-    float grassWeight = calculateTextureWeight(grassH * grassS * step(beachHeight, vPosition.y), vWorldPosition);
-
-    float slopeStoneFactor = smoothstep(stoneSlopeStart, stoneSlopeEnd, slope) * stoneSlopeIntensity;
-    float stoneWeight = calculateTextureWeight(clamp(1.0 - (sandWeight + grassWeight) + slopeStoneFactor, 0.0, 1.0), vWorldPosition);
-
-    float dirtH = smoothstep(dirtHeightStart, dirtHeightEnd, h);
-    float dirtS = smoothstep(dirtSlopeStart, dirtSlopeEnd, slope);
-    float grassStoneInfluence = grassWeight * stoneWeight * grassStoneInfluenceFactor;
-    float dirtBetweenFactorValue = smoothstep(dirtBetweenFactor.x, dirtBetweenFactor.y, grassStoneInfluence);
-    float dirtWeight = calculateTextureWeight(dirtH * dirtS * dirtBetweenFactorValue * step(beachHeight, vPosition.y), vWorldPosition);
-
-    float snowH = smoothstep(snowHeightStart, snowHeightEnd, h);
-    float snowS = smoothstep(snowSlopeStart, snowSlopeEnd, slope);
-    float snowWeight = calculateTextureWeight(
-        snowH * snowS * (1.0 - sandWeight * 0.3) * (1.0 - grassWeight * 0.3) * 
-        (1.0 - stoneWeight * 0.2) * (1.0 - dirtWeight * 0.5),
-        vWorldPosition
-    );
-
-    // Normalize weights
-    float totalWeight = sandWeight + grassWeight + stoneWeight + dirtWeight + snowWeight;
-    sandWeight /= totalWeight;
-    grassWeight /= totalWeight;
-    stoneWeight /= totalWeight;
-    dirtWeight /= totalWeight;
-    snowWeight /= totalWeight;
-
-    // Sample textures with color filters
-    vec4 sandColor = triplanarSample(sandTexture, vPosition, sandRepeat * textureScale, lodFactor) * vec4(sandColorFilter, 1.0);
-    vec4 grassColor = triplanarSample(grassTexture, vPosition, grassRepeat * textureScale, lodFactor) * vec4(grassColorFilter, 1.0);
-    vec4 stoneColor = triplanarSample(stoneTexture, vPosition, stoneRepeat * textureScale, lodFactor) * vec4(stoneColorFilter, 1.0);
-    vec4 dirtColor = triplanarSample(dirtTexture, vPosition, dirtRepeat * textureScale, lodFactor) * vec4(dirtColorFilter, 1.0);
-    vec4 snowColor = triplanarSample(snowTexture, vPosition, snowRepeat * textureScale, lodFactor) * vec4(snowColorFilter, 1.0);
-
-    // Blend colors
-    vec4 baseColor = sandColor * sandWeight +
-                    grassColor * grassWeight +
-                    stoneColor * stoneWeight +
-                    dirtColor * dirtWeight +
-                    snowColor * snowWeight;
-
-    // Apply blob weights
-    float blobWeight = getBlobWeight(vWorldPosition);
-    float grassOnStoneWeight = blobWeight * stoneWeight * blobGrassOnStone;
-    float dirtOnStoneWeight = blobWeight * stoneWeight * blobDirtOnStone;
-    float dirtOnGrassWeight = blobWeight * grassWeight * blobDirtOnGrass;
-
-    if (grassOnStoneWeight > 0.0) {
-        baseColor = mix(baseColor, grassColor, grassOnStoneWeight);
-    }
-    if (dirtOnStoneWeight > 0.0) {
-        baseColor = mix(baseColor, dirtColor, dirtOnStoneWeight);
-    }
-    if (dirtOnGrassWeight > 0.0) {
-        baseColor = mix(baseColor, dirtColor, dirtOnGrassWeight);
-    }
-
-    vec3 albedo = baseColor.rgb;
-    vec3 lightDir = normalize(uSunlightDirection);
-    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-    vec3 halfDir = normalize(lightDir + viewDir);
-
-    vec3 upDirection = vec3(0.0, 1.0, 0.0);
-    float skyFactor = max(dot(vWorldNormal, upDirection), 0.0);
-    vec3 hemisphereLight = mix(uGroundColor, uSkyColor, skyFactor) * uHemisphereIntensity;
-    float NdotL = max(dot(vWorldNormal, lightDir), 0.0);
-    vec3 directLightColor = uSunlightColor * uSunlightIntensity;
-    vec3 diffuse = diffuseIntensity * directLightColor * albedo * NdotL;
-
-    float alpha = roughness * roughness;
-    vec3 F0 = mix(vec3(0.04), albedo, metalness);
-    float NdotV = max(dot(vWorldNormal, viewDir), 0.0);
-    float NdotH = max(dot(vWorldNormal, halfDir), 0.0);
-    float VdotH = max(dot(viewDir, halfDir), 0.0);
-    float D = D_GGX(vWorldNormal, halfDir, roughness);
-    float G = G_Smith(vWorldNormal, viewDir, lightDir, roughness);
-    vec3 F = F_Schlick(VdotH, F0);
-    vec3 numerator = D * G * F;
-    float denominator = 4.0 * NdotV * NdotL + 0.0001;
-    vec3 specular = specularIntensity * (numerator / denominator) * directLightColor;
-
-    float aoFactor = textureLod(aoTexture, vUv, lodFactor).r;
-    aoFactor = mix(1.0, aoFactor, aoIntensity);
-
-    float fogFactor = 0.0;
-    if (fogFar > fogNear) {
-        float fogDistance = clamp((distanceToCamera - fogNear) / (fogFar - fogNear), 0.0, 1.0);
-        float heightFactor = 1.0 - smoothstep(fogHeightMin, fogHeightMax, vWorldPosition.y);
-        fogFactor = fogDistance * heightFactor;
-        fogFactor = 1.0 - exp(-fogDensity * fogFactor * distanceToCamera);
-    }
-    fogFactor = clamp(fogFactor, 0.0, 1.0);
-
-    vec3 finalColor = mix(albedo, fogColor, fogFactor);
-
-    float shadow = 1.0;
-    #ifdef USE_SHADOWMAP
-        DirectionalLightShadow directionalShadow = directionalLightShadows[0];
-        shadow = getShadow(
-            directionalShadowMap[0],
-            directionalShadow.shadowMapSize,
-            directionalShadow.shadowBias,
-            directionalShadow.shadowRadius,
-            vDirectionalShadowCoord[0]
-        );
-    #endif
-
-    finalColor = finalColor * (hemisphereLight + ambientColor * envMapIntensity + diffuse * shadow) + specular * shadow;
-    finalColor *= aoFactor;
-    gl_FragColor = vec4(finalColor, 1.0);
-}`;
-
-    private async createMaterial(isHighDetail: boolean = false): Promise<THREE.ShaderMaterial> {
-        if (!this.Light) {
-            this.Light = new THREE.DirectionalLight(0xffffff, 1); // You can adjust color and intensity
-            this.Light.name = 'Terrain_Light';
-            // You might want to set its position as well, e.g.,
-            this.Light.position.set(1, 1, 1);
-            // If your scene exists at this point, you might also want to add it to the scene:
-            // this.scene.add(this.Light);
-            console.log('Terrain_Light created as no light was set.');
-        }
-
-        const textureScaleMultiplier = isHighDetail ? this.HighDetailFactor : this.LowDetailFactor;
-        const sunLight = this.Light as THREE.DirectionalLight;
-
-        // Ensure all textures are loaded
-        const requiredTextures = [
-            this.sandTexture,
-            this.grassTexture,
-            this.stoneTexture,
-            this.dirtTexture,
-            this.snowTexture
-        ];
-
-        // Check if any required textures are missing
-        const missingTextures = requiredTextures.some(texture => !texture);
-        if (missingTextures) {
-            console.warn('Some textures failed to load, attempting to reload...');
-            await this.loadAllTextures();
-        }
-
-        const material = new THREE.ShaderMaterial({
-            vertexShader: this.vertexShader,
-            fragmentShader: this.fragmentShader,
-            uniforms: THREE.UniformsUtils.merge([
-              THREE.UniformsLib.common,
-              THREE.UniformsLib.specularmap,
-              THREE.UniformsLib.envmap,
-              THREE.UniformsLib.aomap,
-              THREE.UniformsLib.lightmap,
-              THREE.UniformsLib.emissivemap,
-              THREE.UniformsLib.bumpmap,
-              THREE.UniformsLib.normalmap,
-              THREE.UniformsLib.displacementmap,
-              THREE.UniformsLib.gradientmap,
-              THREE.UniformsLib.fog,
-              THREE.UniformsLib.lights,
-                {
-                    uSunlightDirection: { value: sunLight.position},
-                    uSunlightColor: { value: sunLight.color },
-                    uSunlightIntensity: { value: sunLight.intensity },
-                    clippingHeight: { value: this.clip_Height },
-                    sandTexture: { value: this.sandTexture || new THREE.Texture() },
-                    grassTexture: { value: this.grassTexture || new THREE.Texture() },
-                    stoneTexture: { value: this.stoneTexture || new THREE.Texture() },
-                    dirtTexture: { value: this.dirtTexture || new THREE.Texture() },
-                    snowTexture: { value: this.snowTexture || new THREE.Texture() },
-                    aoIntensity: { value: this.AOintensity },
-                    sandRepeat: { value: this.sandScale * textureScaleMultiplier },
-                    grassRepeat: { value: this.grassScale * textureScaleMultiplier },
-                    stoneRepeat: { value: this.stoneScale * textureScaleMultiplier },
-                    dirtRepeat: { value: this.dirtScale * textureScaleMultiplier },
-                    snowRepeat: { value: this.snowScale * textureScaleMultiplier },
-                    maxHeight: { value: this.maxHeight },
-                    roughness: { value: this.roughness },
-                    metalness: { value: this.metalness },
-                    ambientColor: { value: this.ambientColor },
-                    diffuseIntensity: { value: this.diffuseIntensity },
-                    specularIntensity: { value: this.specularIntensity },
-                    envMapIntensity: { value: this.envMapIntensity },
-                    fogNear: { value: this.fogNear },
-                    fogFar: { value: this.fogFar },
-                    fogHeightMin: { value: this.fogHeightMin },
-                    fogHeightMax: { value: this.fogHeightMax },
-                    fogDensity: { value: this.fogDensity },
-                    gradientSeed: { value: new THREE.Vector2(Math.random(), Math.random()) },
-                    blendSmoothness: { value: this.blendSmoothness },
-                    uvOffsetScale: { value: 0.1 },
-                    uvRotationScale: { value: 0.4 },
-                    cameraDistanceFactor: { value: isHighDetail ? this.HighDetailFactor * 1000 : this.LowDetailFactor * 1000 }, // Adjust factor as needed
-                    sandSlopeStart: { value: this.sandSlopeStart },
-                    sandSlopeEnd: { value: this.sandSlopeEnd },
-                    grassSlopeStart: { value: this.grassSlopeStart },
-                    grassSlopeEnd: { value: this.grassSlopeEnd },
-                    stoneSlopeStart: { value: this.stoneSlopeStart },
-                    stoneSlopeEnd: { value: this.stoneSlopeEnd },
-                    stoneSlopeIntensity: { value: this.stoneSlopeIntensity },
-                    dirtSlopeStart: { value: this.dirtSlopeStart },
-                    dirtSlopeEnd: { value: this.dirtSlopeEnd },
-                    dirtHeightStart: { value: this.dirtHeightStart },
-                    dirtHeightEnd: { value: this.dirtHeightEnd },
-                    snowSlopeStart: { value: this.snowSlopeStart },
-                    snowSlopeEnd: { value: this.snowSlopeEnd },
-                    snowHeightStart: { value: this.snowHeightStart },
-                    snowHeightEnd: { value: this.snowHeightEnd },
-                    snowBlendSmoothness: { value: this.snowBlendSmoothness },
-                    heightmapTexture: { value: this.heightmapTexture },
-                    heightmapSize: { value: new THREE.Vector2(this.heightmapSize.width, this.heightmapSize.height) },
-                    terrainScale: { value: this.Scale },
-                    terrainOffset: { value: this.Offset },
-                    uSkyColor: { value: this.skyColor },
-                    uGroundColor: { value: this.groundColor },
-                    uHemisphereIntensity: { value: this.HemisphereLightIntensity },
-                    BackcullingShader: { value: this.BackcullingShader },
-                    backfaceCullingThreshold: { value: 0.0 },
-                    overallUvOffset: { value: this.overallTextureOffset },
-                    overallUvRotation: { value: this.overallTextureRotation },
-                    grassStoneInfluenceFactor: { value: 1.0 },
-                    dirtBetweenFactor: { value: new THREE.Vector2(0.01, 0.2) },
-                    fogColor: { value: this.fogColor },
-
-                    // Shadow uniforms
-                    shadowMapResolution: { value: this.shadowMapResolution },
-                    shadowSoftness: { value: this.shadowSoftness },
-                    shadowBias: { value: this.shadowBias },
-
-                    // New uniforms for dynamic blending
-                    blendFactor: { value: 0.5 }, // Adjust to control the overall influence
-                    blendFrequency: { value: 0.1 }, // Adjust for the scale of the noise
-                    blendAmplitude: { value: 0.3 }, // Adjust for the intensity of the noise effect
-                    blendSharpness: { value: 5.0 }, // Adjust for sharper or smoother transitions
-
-                    // New uniforms for blob layer
-                    blobGrassTexture: { value: this.grassTexture }, // Using existing grass texture for blobs
-                    blobDirtTexture: { value: this.dirtTexture },   // Using existing dirt texture for blobs
-                    blobInfluence: { value: 1 },
-                    blobDensity: { value: 0.05 },
-                    blobScale: { value: 0.8 },
-                    blobGrassOnStone: { value: 0.8 },
-                    blobDirtOnStone: { value: 0.5 },
-                    blobDirtOnGrass: { value: 0.1 },
-
-                    // New uniform for close-range texture scale
-                    textureScaleClose: { value: this.CloseRangeFactor },
-                    textureScaleMid: { value: this.MidRangeFactor },
-                    textureScaleCloseDistance: { value: this.CloseRangeFactorDistance },
-                    textureScaleMidDistance: { value: this.MidRangeFactorDistance },
-                    beachHeight: { value: this.beachHeight },
-
-                    // Add new uniforms for octave noise
-                    octaveScale: { value: this.octaveScale },
-                    octaveIntensity: { value: this.octaveIntensity },
-                    octaveOctaves: { value: this.octaveOctaves },
-                    octavePersistence: { value: this.octavePersistence },
-                    octaveLacunarity: { value: this.octaveLacunarity },
-                    octaveSeed: { value: this.octaveSeed },
-
-                    borderNoiseScale: { value: 100.0 },
-                    borderNoiseIntensity: { value: 0.5 },
-                    borderNoiseOctaves: { value: 4 },
-                    borderNoisePersistence: { value: 0.5 },
-                    borderNoiseLacunarity: { value: 2.0 },
-                    borderNoiseSeed: { value: 12345 },
-                    sandColorFilter: { value: this.sandColorFilter },
-                    grassColorFilter: { value: this.grassColorFilter },
-                    stoneColorFilter: { value: this.stoneColorFilter },
-                    dirtColorFilter: { value: this.dirtColorFilter },
-                    snowColorFilter: { value: this.snowColorFilter },
-                }
-            ]),
-            lights: true,
-            fog: true,
-            shadowSide: THREE.FrontSide,
-        });
-
-        // Set receiveShadow after material creation
-        material.customProgramCacheKey = () => 'terrainShader'; // Ensure unique shader compilation
-        return material;
-    }
-
-    private updateShaderUniforms() {
-        if (!this.Light) {
-            console.warn('this.Light is undefined in updateShaderUniforms!');
-            return; // Or handle this case appropriately
-        }
-        const sunLight = this.Light as THREE.DirectionalLight;
-        const normalizedDirection = sunLight.position;
-        const commonUniforms = {
-            aoIntensity: this.AOintensity,
-            maxHeight: this.maxHeight,
-            roughness: this.roughness,
-            metalness: this.metalness,
-            ambientColor: this.ambientColor,
-            diffuseIntensity: this.diffuseIntensity,
-            specularIntensity: this.specularIntensity,
-            envMapIntensity: this.envMapIntensity,
-            blendSmoothness: this.blendSmoothness,
-            clippingHeight: this.clip_Height,
-            sandSlopeStart: this.sandSlopeStart,
-            sandSlopeEnd: this.sandSlopeEnd,
-            grassSlopeStart: this.grassSlopeStart,
-            grassSlopeEnd: this.grassSlopeEnd,
-            stoneSlopeStart: this.stoneSlopeStart,
-            stoneSlopeEnd: this.stoneSlopeEnd,
-            stoneSlopeIntensity: this.stoneSlopeIntensity,
-            dirtSlopeStart: this.dirtSlopeStart,
-            dirtSlopeEnd: this.dirtSlopeEnd,
-            dirtHeightEnd: this.dirtHeightEnd,
-            snowSlopeStart: this.snowSlopeStart,
-            snowSlopeEnd: this.snowSlopeEnd,
-            snowHeightStart: this.snowHeightStart,
-            snowHeightEnd: this.snowHeightEnd,
-            snowBlendSmoothness: this.snowBlendSmoothness,
-            heightmapTexture: this.heightmapTexture,
-            heightmapSize: new THREE.Vector2(this.heightmapSize.width, this.heightmapSize.height),
-            terrainScale: this.Scale,
-            terrainOffset: this.Offset,
-            uSunlightDirection: normalizedDirection,
-            uSunlightColor: sunLight.color,
-            uSunlightIntensity: sunLight.intensity,
-            uHemisphereIntensity: this.HemisphereLightIntensity,
-            sandTexture: this.sandTexture,
-            grassTexture: this.grassTexture,
-            stoneTexture: this.stoneTexture,
-            dirtTexture: this.dirtTexture,
-            snowTexture: this.snowTexture,
-            BackcullingShader: this.BackcullingShader,
-            overallUvOffset: this.overallTextureOffset,
-            overallUvRotation: this.overallTextureRotation,
-            grassStoneInfluenceFactor: this.grassStoneInfluenceFactor,
-            dirtBetweenFactor: this.dirtBetweenFactor,
-            fogColor: this.fogColor,
-            fogNear: this.fogNear,
-            fogFar: this.fogFar,
-            fogDensity: this.fogDensity,
-            fogHeightMin: this.fogHeightMin,
-            fogHeightMax: this.fogHeightMax,
-
-            // Update shadow uniforms
-            shadowMapResolution: this.shadowMapResolution,
-            shadowSoftness: this.shadowSoftness,
-            shadowBias: this.shadowBias,
-
-            // Update dynamic blending uniforms
-            blendFactor: this.blendFactor,
-            blendFrequency: this.blendFrequency,
-            blendAmplitude: this.blendAmplitude,
-            blendSharpness: this.blendSharpness,
-
-            // Update blob layer uniforms
-            blobInfluence: this.blobInfluence,
-            blobDensity: this.blobDensity,
-            blobScale: this.blobScale,
-            blobGrassOnStone: this.blobGrassOnStone,
-            blobDirtOnStone: this.blobDirtOnStone,
-            blobDirtOnGrass: this.blobDirtOnGrass,
-            blobGrassTexture: this.grassTexture, // Ensure textures are updated if they change
-            blobDirtTexture: this.dirtTexture,   // Ensure textures are updated if they change
-
-            // Update new texture scale uniform
-            textureScaleClose: this.CloseRangeFactor,
-            textureScaleMid: this.MidRangeFactor,
-            textureScaleCloseDistance: this.CloseRangeFactorDistance,
-            textureScaleMidDistance: this.MidRangeFactorDistance,
-            beachHeight: this.beachHeight,
-
-            // Update octave noise uniforms
-            octaveScale: this.octaveScale,
-            octaveIntensity: this.octaveIntensity,
-            octaveOctaves: this.octaveOctaves,
-            octavePersistence: this.octavePersistence,
-            octaveLacunarity: this.octaveLacunarity,
-            octaveSeed: this.octaveSeed,
-
-            borderNoiseScale: this.borderNoiseScale,
-            borderNoiseIntensity: this.borderNoiseIntensity,
-            borderNoiseOctaves: this.borderNoiseOctaves,
-            borderNoisePersistence: this.borderNoisePersistence,
-            borderNoiseLacunarity: this.borderNoiseLacunarity,
-            borderNoiseSeed: this.borderNoiseSeed,
-            sandColorFilter: this.sandColorFilter,
-            grassColorFilter: this.grassColorFilter,
-            stoneColorFilter: this.stoneColorFilter,
-            dirtColorFilter: this.dirtColorFilter,
-            snowColorFilter: this.snowColorFilter,
-        };
-        if (this.highDetailMaterial) {
-            const textureScaleMultiplier = this.HighDetailFactor;
-            this.highDetailMaterial.uniforms.sandRepeat.value = this.sandScale * textureScaleMultiplier;
-            this.highDetailMaterial.uniforms.grassRepeat.value = this.grassScale * textureScaleMultiplier;
-            this.highDetailMaterial.uniforms.stoneRepeat.value = this.stoneScale * textureScaleMultiplier;
-            this.highDetailMaterial.uniforms.dirtRepeat.value = this.dirtScale * textureScaleMultiplier;
-            this.highDetailMaterial.uniforms.snowRepeat.value = this.snowScale * textureScaleMultiplier;
-            this.highDetailMaterial.uniforms.cameraDistanceFactor.value = this.HighDetailFactor * 1000;
-            for (const uniformName in commonUniforms) {
-                if (this.highDetailMaterial.uniforms[uniformName]) {
-                    this.highDetailMaterial.uniforms[uniformName].value = commonUniforms[uniformName];
-                }
-            }
-        }
-        if (this.lowDetailMaterial) {
-            const textureScaleMultiplier = this.LowDetailFactor;
-            this.lowDetailMaterial.uniforms.sandRepeat.value = this.sandScale * textureScaleMultiplier;
-            this.lowDetailMaterial.uniforms.grassRepeat.value = this.grassScale * textureScaleMultiplier;
-            this.lowDetailMaterial.uniforms.stoneRepeat.value = this.stoneScale * textureScaleMultiplier;
-            this.lowDetailMaterial.uniforms.dirtRepeat.value = this.dirtScale * textureScaleMultiplier;
-            this.lowDetailMaterial.uniforms.snowRepeat.value = this.snowScale * textureScaleMultiplier;
-            this.lowDetailMaterial.uniforms.cameraDistanceFactor.value = this.LowDetailFactor * 1000;
-            for (const uniformName in commonUniforms) {
-                if (this.lowDetailMaterial.uniforms[uniformName]) {
-                    this.lowDetailMaterial.uniforms[uniformName].value = commonUniforms[uniformName];
-                }
-            }
-        }
-    }
-
-    private highDetailMaterial: THREE.ShaderMaterial;
-    private lowDetailMaterial: THREE.ShaderMaterial;
-    public BackcullingShader: number = 90;
-
-
-
 
 //=======================================================================================
 //
@@ -3415,13 +2509,18 @@ void main() {
           this.globalInstantiatedPrefabs[prefabName] = instance;
           this.foliagePrefabsFolder!.add(instance);
           instance.visible = false; // Hide the master instance
+          // Ensure the master instance's world matrix is updated to capture its scale/transform
+           instance.updateMatrixWorld(true);
         } else {
           console.warn(`Failed to instantiate prefab: ${prefabName}`);
           return null; // Failed instantiation
         }
       }
       // Clone the master instance rather than returning the cached instance directly
-      return this.globalInstantiatedPrefabs[prefabName].clone();
+      const clonedInstance = this.globalInstantiatedPrefabs[prefabName].clone();
+      // Update matrix world for the clone to ensure its initial transform (including scale) is captured
+      clonedInstance.updateMatrixWorld(true);
+      return clonedInstance;
     }
 
     private generateFoliageInstances(group: THREE.Group, geometry: THREE.BufferGeometry, seed: number) {
@@ -3585,7 +2684,15 @@ void main() {
                                 new THREE.Vector3(0, 1, 0), angle);
                             quaternion.multiply(randomYRotation);
 
-                            scale.set(scaleFactor, randomScaleY, scaleFactor);
+                            // Get the scale from the source prefab mesh
+                            const sourceScale = sourcePrefabMesh.scale;
+
+                            // Combine the source prefab's scale with the instance-specific random scale
+                            scale.set(
+                                scaleFactor * sourceScale.x,
+                                randomScaleY * sourceScale.y,
+                                scaleFactor * sourceScale.z
+                            );
 
                             // Position jitter with clustering
                             const clusterChance = this.seededRandom(baseSeed, 7);
@@ -3725,12 +2832,12 @@ void main() {
 //=======================================================================================
 
     // docs
+    @RE.props.group("", false)
     @RE.props.text() Docs: string = "https://github.com/danbaoren/RuntimeMapGen";
     @RE.props.checkbox() View_Mode: boolean = true;
 
 
-            @RE.props.button() SEPcore;
-            SEPcoreLabel = "🛠️⚙️ 𝗚𝗘𝗡𝗘𝗥𝗔𝗟";
+        @RE.props.group("🛠️ General", true)
       @RE.props.texture() heightmapTexture: THREE.Texture | null = null;   // Overrides StaticPath, remove image from this input for production
       @RE.props.text() HeightmapStaticPath: string = "MapGen/Maps/map.png";
       @RE.props.vector3() Scale: THREE.Vector3 = new THREE.Vector3(20, 20, 20);
@@ -3760,8 +2867,7 @@ void main() {
 
 
 
-          @RE.props.button() SEPtex;
-          SEPtexLabel = "🎨🏞️ 𝗧𝗘𝗫𝗧𝗨𝗥𝗘𝗦 ";
+          @RE.props.group("🎨 Textures", true)
       @RE.props.text() texturesStaticPath: string = "MapGen/Textures/";
       @RE.props.text() ktx2_Transcoder: string = "Modules/basis/";
       @RE.props.texture() sandTexture: THREE.Texture | null = null;
@@ -3791,15 +2897,20 @@ void main() {
       @RE.props.num() snowHeightStart = 0.8;
       @RE.props.num() snowHeightEnd = 1.0;
       @RE.props.num() snowBlendSmoothness = 1.0;
+        @RE.props.color() sandColorFilter = new THREE.Color(0xe6e0da);
+      @RE.props.color() grassColorFilter = new THREE.Color(0xebebeb);
+      @RE.props.color() stoneColorFilter = new THREE.Color(0xd3d3d3);
+      @RE.props.color() dirtColorFilter = new THREE.Color(0xf0f0f0);
+      @RE.props.color() snowColorFilter = new THREE.Color(0xffffff);
 
 
-        @RE.props.button() SEPfoliage;
-        SEPfoliageLabel = "🌿🪨️🌳 𝗙𝗢𝗟𝗜𝗔𝗚𝗘";
+        @RE.props.group("🌿 Foliage", true)
     @RE.props.checkbox() enableFoliage: boolean = false;
 
     @RE.props.list.prefab() fPrefabsGroup_0: RE.Prefab[] = [];
     @RE.props.list.prefab() fPrefabsGroup_1: RE.Prefab[] = [];
     @RE.props.list.prefab() fPrefabsGroup_2: RE.Prefab[] = [];
+    @RE.props.list.prefab() fPrefabsGroup_3: RE.Prefab[] = [];
     // When you add new groups (like fPrefabsGroup_3) they will be detected automatically
 
     @RE.props.text() __________________________________: string = " ";
@@ -3824,8 +2935,7 @@ void main() {
     @RE.props.num() fRemoveDelay: number = 50;
 
 
-      @RE.props.button() SEPcoll;
-      SEPcollLabel = "💥🚧 𝗖𝗢𝗟𝗟𝗜𝗦𝗜𝗢𝗡 ";
+      @RE.props.group("💥 Collision", true)
       @RE.props.checkbox() RapierCollision = false;
       @RE.props.num() collisionChunkSize = 10;
       @RE.props.num() collider_Subdivision = 10;
@@ -3836,8 +2946,7 @@ void main() {
       public collisionGenerationDelay = 10000;
       @RE.props.checkbox() VisualizeCollision = false;
 
-      @RE.props.button() SEPmap;
-      SEPmapLabel = "🧭🗺️ 𝗠𝗜𝗡𝗜𝗠𝗔𝗣 & 𝗡𝗔𝗩𝗜𝗚𝗔𝗧𝗜𝗢𝗡 ";
+      @RE.props.group("🧭 Navigation", true)
       @RE.props.button() refmap = () => RMG_Navigation.refreshMapCanvas();
         refmapLabel = "[Debug] refresh map";
       @RE.props.checkbox() EnableMinimap: boolean = true;
@@ -3848,8 +2957,7 @@ void main() {
       @RE.props.num() terrainMaxHeight = 1;
       @RE.props.text()  minimapPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' = 'top-right';
 
-        @RE.props.button() SEPloadbar;
-        SEPloadbarLabel = "⏳🧉 𝗟𝗢𝗔𝗗𝗜𝗡𝗚 𝗕𝗔𝗥";
+        @RE.props.group("⏳ Loading Bar", true)
     @RE.props.color() loaded_tiles_color = new THREE.Color(0x8BC34A);
     @RE.props.color() unloaded_tiles_color = new THREE.Color(0x555555);
     @RE.props.list.text() load_msgs: string[] = [
@@ -3861,16 +2969,7 @@ void main() {
     ];
     @RE.props.num() msg_next_tiles: number = 100; // set to 0 to select randomly just once
 
-          @RE.props.button() SEPtexOverall;
-            SEPtexOverallLabel = "✨🌫️ 𝗔𝗠𝗕𝗜𝗘𝗡𝗖𝗘";
-      // Add texture color filter properties
-      @RE.props.color() sandColorFilter = new THREE.Color(0xe6e0da);
-      @RE.props.color() grassColorFilter = new THREE.Color(0xebebeb);
-      @RE.props.color() stoneColorFilter = new THREE.Color(0xd3d3d3);
-      @RE.props.color() dirtColorFilter = new THREE.Color(0xf0f0f0);
-      @RE.props.color() snowColorFilter = new THREE.Color(0xffffff);
-      @RE.props.text() ___________________________________________: string = " ";
-      // Add new octave weight parameters
+        @RE.props.group("✨ Ambience", true)
       @RE.props.num() octaveScale = 56;  // Scale of the noise pattern
       @RE.props.num() octaveIntensity = 3;  // Overall intensity of octave influence
       @RE.props.num() octaveOctaves = 2;  // Number of octaves to use
@@ -3934,8 +3033,7 @@ void main() {
 
 
 
-          @RE.props.button() SEPexp;
-        SEPexpLabel = "🧪⚡ 𝗣𝗥𝗢𝗖𝗘𝗗𝗨𝗥𝗔𝗟 𝗙𝗜𝗟𝗧𝗘𝗥";
+        @RE.props.group("🧪 Procedural Filters", true)
     @RE.props.button() exportHeightmapButton = () => RMG_Export.exportHeightmapBatched();
     exportHeightmapButtonLabel = "[EXPORT] Terrain to Heightmap";
 
@@ -4017,24 +3115,6 @@ void main() {
     @RE.props.num() cliffSlopeStart: number = 0.5; // Slope value to start cliff generation (0 to 1, approximate)
     @RE.props.num() cliffSlopeEnd: number = 0.8; // Slope value to end cliff generation
     @RE.props.num() cliffIntensity: number = 5; // Intensity of the cliff sharpening effect (adjust height difference)
-
-
-    /*
-    @RE.props.text() ________________________________________________________________________: string = " ";
-    // Talus Formation Configuration
-    @RE.props.checkbox() enableTalus: boolean = false; // Enable/disable talus formation
-    @RE.props.num() talusMinSlope: number = 0.7; // Minimum slope for talus formation (0-1)
-    @RE.props.num() talusMaxSlope: number = 0.9; // Maximum slope for talus formation (0-1)
-    @RE.props.num() talusAccumulationFactor: number = 1.0; // How much material accumulates (0-2)
-    @RE.props.num() talusSpreadDistance: number = 30; // How far talus material spreads
-    @RE.props.num() talusParticleSize: number = 5; // Size of individual talus particles
-    @RE.props.num() talusStability: number = 0.7; // Angle of repose (0-1)
-    @RE.props.num() talusNoiseFactor: number = 0.3; // Randomness in talus distribution (0-1)
-    @RE.props.num() talusCompression: number = 0.5; // How compressed the talus becomes (0-1)
-    @RE.props.num() talusLayering: number = 0.4; // Strength of layered appearance (0-1)
-    @RE.props.num() talusSeed: number = 54321; // Seed for talus noise patterns
-
-     */
 
 
 

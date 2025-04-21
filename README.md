@@ -9,8 +9,6 @@
 
 Fast, modular terrain deployment for WebGL/Three.js games using RogueEngine.
 
-Instantly convert heightmap images into immersive, playable environments.
-
 ---
 
 ## Features

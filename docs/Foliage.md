@@ -28,7 +28,7 @@ in "Prefabs/Foliage/" create a new group with format "%index%_%Name%"
 
 When folder created, put foliage prefabs into it. When code trying to place foliage, it will randomly select prefab object from this specific group.
 
-* **Note:** The system automatically detects new groups if added following the naming convention (e.g., `fPrefabsGroup_3`, `fPrefabsGroup_4`, etc.). Each group corresponds to an index in the settings lists below.
+* **Note:** The system automatically detects new groups if added following the naming convention (e.g., `3_Kelps`, `4_Corals`, etc.). Each group corresponds to an index in the settings lists below.
 
 ---
 

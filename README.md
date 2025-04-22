@@ -42,9 +42,6 @@ Fast, modular terrain deployment for WebGL/Three.js games using RogueEngine.
   
 
 - **Environment**: Add `MapGen/Environment/Environment.roguePrefab` for clouds and ocean.
-  
-- **Foliage**: Assign models from `MapGen/Foliage/` in the RuntimeMapGen component (assets by Quaternius).
-  
 
 ---
 

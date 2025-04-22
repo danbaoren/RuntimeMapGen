@@ -425,6 +425,8 @@ export default class RuntimeMapGen extends RE.Component {
             console.error("Failed to initialize WorldGen:", error);
         }
 
+        //this.LogoConsole();
+
         // Stop Runtime
         RE.Runtime.onStop(() => {
             this.activeCameras[0].remove();
@@ -609,6 +611,18 @@ export default class RuntimeMapGen extends RE.Component {
         RE.traverseComponents((component: any, objectUUID: string) => {
           RE.removeComponent(component);
         });
+    }
+
+    private LogoConsole() {
+        RE.Debug.log('                      Runtime MapGen STARTED' +
+            '\n                      By danbaoren');
+        RE.Debug.log(String.raw`─────▄████▀█▄
+───▄█████████████████▄
+─▄█████.▼.▼.▼.▼.▼.▼▼▼▼
+▄███████▄.▲.▲▲▲▲▲▲▲▲
+████████████████████▀▀
+`);
+
     }
 
 
@@ -2481,6 +2495,7 @@ export default class RuntimeMapGen extends RE.Component {
 
 
 
+
 //=======================================================================================
 //
 // #region Foliage
@@ -2492,246 +2507,207 @@ export default class RuntimeMapGen extends RE.Component {
 
     private getInstantiatedPrefab(prefab: RE.Prefab): THREE.Group | null {
       if (!prefab) return null;
-      const prefabName = prefab.name;
+      const prefabName = prefab.name; // Note: prefab.name is usually the full path
+      // Use the full path from the prefab for the internal map key
+      const mapKey = prefab.name;
 
-      // Initialize foliage prefabs folder if not exists
       if (!this.foliagePrefabsFolder) {
         this.foliagePrefabsFolder = new THREE.Object3D();
         this.foliagePrefabsFolder.name = "FoliagePrefabs";
         this.object3d.add(this.foliagePrefabsFolder);
       }
 
-      // If no master instance exists for this prefab, instantiate and store it
-      if (!this.globalInstantiatedPrefabs[prefabName]) {
+      // instantiate master if needed using the full path as the key
+      if (!this.globalInstantiatedPrefabs[mapKey]) {
         const instance = prefab.instantiate() as THREE.Group;
-        if (instance) {
-          instance.name = `Master_${prefabName}`;
-          this.globalInstantiatedPrefabs[prefabName] = instance;
-          this.foliagePrefabsFolder!.add(instance);
-          instance.visible = false; // Hide the master instance
-          // Ensure the master instance's world matrix is updated to capture its scale/transform
-           instance.updateMatrixWorld(true);
-        } else {
-          console.warn(`Failed to instantiate prefab: ${prefabName}`);
-          return null; // Failed instantiation
+        if (!instance) {
+          console.warn(`Failed to instantiate prefab: ${prefabName}`); // Use prefab.name for console
+          return null;
         }
+        // Use prefab.name (full path) for the instance name as well, or a derived name
+        instance.name = `Master_${prefabName.replace(/[/.]/g, '_')}`; // Simple sanitization for object name
+        this.globalInstantiatedPrefabs[mapKey] = instance;
+        this.foliagePrefabsFolder.add(instance);
+        instance.visible = false;
+        instance.updateMatrixWorld(true);
       }
-      // Clone the master instance rather than returning the cached instance directly
-      const clonedInstance = this.globalInstantiatedPrefabs[prefabName].clone();
-      // Update matrix world for the clone to ensure its initial transform (including scale) is captured
-      clonedInstance.updateMatrixWorld(true);
-      return clonedInstance;
+
+      // Clone using the full path key
+      const clone = this.globalInstantiatedPrefabs[mapKey].clone();
+      clone.updateMatrixWorld(true);
+      return clone;
     }
 
-    private generateFoliageInstances(group: THREE.Group, geometry: THREE.BufferGeometry, seed: number) {
-        // Set default values for settings arrays if not specified
-        // (Default value setting logic remains the same)
-        if (!this.fDensities || this.fDensities.length === 0) this.fDensities = [0.005];
-        if (!this.fScaleMins || this.fScaleMins.length === 0) this.fScaleMins = [1];
-        if (!this.fScaleMaxs || this.fScaleMaxs.length === 0) this.fScaleMaxs = [5];
-        if (!this.fRotateWithTerrain || this.fRotateWithTerrain.length === 0) this.fRotateWithTerrain = [true];
-        if (!this.fSlopeStart || this.fSlopeStart.length === 0) this.fSlopeStart = [0];
-        if (!this.fSlopeEnd || this.fSlopeEnd.length === 0) this.fSlopeEnd = [0.3];
-        if (!this.fHeightMin || this.fHeightMin.length === 0) this.fHeightMin = [100];
-        if (!this.fHeightMax || this.fHeightMax.length === 0) this.fHeightMax = [100000];
-        if (!this.fUndergroundOffsets || this.fUndergroundOffsets.length === 0) this.fUndergroundOffsets = [0];
-        if (!this.fIterations || this.fIterations.length === 0) this.fIterations = [1];
+    public async generateFoliageInstances(group: THREE.Group, geometry: THREE.BufferGeometry, seed: number) {
+      // 1) Default arrays
+      if (!this.fDensities?.length)         this.fDensities        = [0.005];
+      if (!this.fScaleMins?.length)         this.fScaleMins        = [1];
+      if (!this.fScaleMaxs?.length)         this.fScaleMaxs        = [5];
+      if (!this.fRotateWithTerrain?.length) this.fRotateWithTerrain= [true];
+      if (!this.fSlopeStart?.length)        this.fSlopeStart       = [0];
+      if (!this.fSlopeEnd?.length)          this.fSlopeEnd         = [0.3];
+      if (!this.fHeightMin?.length)         this.fHeightMin        = [100];
+      if (!this.fHeightMax?.length)         this.fHeightMax        = [100000];
+      if (!this.fUndergroundOffsets?.length)this.fUndergroundOffsets=[0];
+      if (!this.fIterations?.length)        this.fIterations       = [1];
 
-        // Clear previous foliage folder if it exists
-        const existingFoliage = group.getObjectByName("Foliage");
-        if (existingFoliage) {
-            // Use await here if clearing needs to finish before generating new foliage,
-            // otherwise, let it run concurrently (potential for overlap if generation is fast).
-            this.clearFoliage(group);
+      // 2) Clear old foliage
+      const existing = group.getObjectByName("Foliage");
+      if (existing) await this.clearFoliage(group);
+
+      const foliageFolder = new THREE.Group();
+      foliageFolder.name = "Foliage";
+
+      const positions = geometry.attributes.position.array as Float32Array;
+      const normals   = geometry.attributes.normal.array   as Float32Array;
+      const allMeshes: THREE.InstancedMesh[] = [];
+
+      // 3) Async‐build map: groupIndex → RE.Prefab[] based on the base path
+      const groupsMap = new Map<number, RE.Prefab[]>();
+      const namedUUIDs = RE.Prefab.namedPrefabUUIDs;
+      const basePath = this.foliagePrefabBasePath; // Use the variable
+
+      for (const fullName in namedUUIDs) {
+        // Check if the prefab path starts with the defined base path
+        if (fullName.startsWith(basePath)) {
+          // Get the part of the path after the base path
+          const relativePath = fullName.substring(basePath.length);
+          // Split by the first slash to get the group folder name (e.g., "0_trees/pine_01" -> "0_trees")
+          const parts = relativePath.split('/');
+          if (parts.length < 2) continue; // Expecting at least "group_folder/prefab_name" format
+
+          const groupFolder = parts[0];
+          const m = /^(\d+)_/.exec(groupFolder); // Extract index from the group folder name
+          if (!m) continue;
+
+          const idx = parseInt(m[1], 10);
+          try {
+            // try to fetch (or get if already loaded) using the full original name
+            const prefab = await RE.Prefab.fetch(fullName);
+            if (!groupsMap.has(idx)) groupsMap.set(idx, []);
+            groupsMap.get(idx)!.push(prefab);
+          } catch (e) {
+            console.warn(`Could not load prefab "${fullName}" within base path "${basePath}":`, e);
+          }
         }
+      }
 
-        const foliageFolder = new THREE.Group();
-        foliageFolder.name = "Foliage";
+      // 4) Sort & iterate each group
+      const sortedIndices = Array.from(groupsMap.keys()).sort((a,b)=>a-b);
+      for (const groupIndex of sortedIndices) {
+        const prefabGroup = groupsMap.get(groupIndex)!;
+        if (!prefabGroup.length) continue;
 
-        const positions = geometry.attributes.position.array;
-        const normals = geometry.attributes.normal.array;
+        const iterations = this.fIterations[groupIndex] ?? 1;
+        for (let iter = 0; iter < iterations; iter++) {
+          // per‐group settings
+          const D    = this.fDensities        [groupIndex % this.fDensities.length];
+          const minS = this.fScaleMins        [groupIndex % this.fScaleMins.length];
+          const maxS = this.fScaleMaxs        [groupIndex % this.fScaleMaxs.length];
+          const rotT = this.fRotateWithTerrain[groupIndex % this.fRotateWithTerrain.length];
+          const s0   = this.fSlopeStart       [groupIndex % this.fSlopeStart.length];
+          const s1   = this.fSlopeEnd         [groupIndex % this.fSlopeEnd.length];
+          const h0   = this.fHeightMin        [groupIndex % this.fHeightMin.length];
+          const h1   = this.fHeightMax        [groupIndex % this.fHeightMax.length];
+          const ug   = this.fUndergroundOffsets[groupIndex % this.fUndergroundOffsets.length];
 
-        const allFoliageMeshes: THREE.InstancedMesh[] = [];
+          // 5) Collect valid spawn positions
+          const spawnData: {
+            pos: THREE.Vector3;
+            norm: THREE.Vector3;
+            seed: number;
+            idx: number;
+          }[] = [];
 
-        // Dynamically gather all prefab groups
-        const prefabGroupKeys = Object.keys(this)
-            .filter(key => key.startsWith("fPrefabsGroup_"))
-            .sort((a, b) => {
-                const numA = parseInt(a.replace("fPrefabsGroup_", ""));
-                const numB = parseInt(b.replace("fPrefabsGroup_", ""));
-                return numA - numB;
+          for (let i = 0; i < positions.length; i += 3) {
+            if (this.seededRandom(seed + groupIndex*200000 + iter*1000 + i, 0) > D) continue;
+
+            const p = new THREE.Vector3(positions[i], positions[i+1], positions[i+2]);
+            const worldY = this.getWorldY(p, group);
+            const ny     = normals[i+1];
+            const slope  = 1 - ny;
+            if (slope < s0 || slope > s1) continue;
+            if (worldY < h0 || worldY > h1) continue;
+
+            spawnData.push({
+              pos: p,
+              norm: new THREE.Vector3(normals[i], normals[i+1], normals[i+2]),
+              seed: seed + groupIndex*200000 + iter*1000 + i,
+              idx: i/3
             });
+          }
+          if (!spawnData.length) continue;
 
-        // Loop over each group and their respective iterations
-        prefabGroupKeys.forEach((groupKey, groupIndex) => {
-            const groupIterations = this.fIterations[groupIndex] ?? 1;
+          // 6) Bucket by variant
+          const byVariant: Record<number, typeof spawnData> = {};
+          for (const d of spawnData) {
+            if (this.seededRandom(d.seed, 9) < 0.4) continue;
+            const v = Math.floor(this.seededRandom(d.seed, 8) * prefabGroup.length);
+            (byVariant[v] ||= []).push(d);
+          }
 
-            for (let iteration = 0; iteration < groupIterations; iteration++) {
-                // Retrieve group-specific settings
-                const density = this.fDensities[groupIndex % this.fDensities.length];
-                const minScale = this.fScaleMins[groupIndex % this.fScaleMins.length];
-                const maxScale = this.fScaleMaxs[groupIndex % this.fScaleMaxs.length];
-                const rotateWithTerrain = this.fRotateWithTerrain[groupIndex % this.fRotateWithTerrain.length];
-                const slopeStart = this.fSlopeStart[groupIndex % this.fSlopeStart.length];
-                const slopeEnd = this.fSlopeEnd[groupIndex % this.fSlopeEnd.length];
-                const heightMin = this.fHeightMin[groupIndex % this.fHeightMin.length];
-                const heightMax = this.fHeightMax[groupIndex % this.fHeightMax.length];
-                const undergroundOffset = this.fUndergroundOffsets[groupIndex % this.fUndergroundOffsets.length];
+          // 7) Build InstancedMesh for each variant
+          for (const key in byVariant) {
+            const vi        = +key;
+            const instances = byVariant[vi];
+            const prefab    = prefabGroup[vi];
+            const master    = this.getInstantiatedPrefab(prefab);
+            if (!master) continue;
 
-                // Access the prefab group
-                const prefabGroup: RE.Prefab[] = (this as any)[groupKey];
-                if (!prefabGroup || prefabGroup.length === 0) continue;
+            const meshes: THREE.Mesh[] = [];
+            master.traverse(c => c instanceof THREE.Mesh && meshes.push(c));
+            if (!meshes.length) {
+              console.warn(`Prefab ${prefab.name} has no Mesh children.`);
+              continue;
+            }
 
-                // --- Position Calculation (No Caching) ---
-                const foliagePositions: { position: THREE.Vector3; normal: THREE.Vector3; baseSeed: number; originalIndex: number }[] = [];
-                for (let i = 0; i < positions.length; i += 3) {
-                    const randomValue = this.seededRandom(seed + groupIndex * 200000 + iteration * 1000 + i, 0);
-                    if (randomValue > density) continue;
+            for (const src of meshes) {
+              const inst = new THREE.InstancedMesh(src.geometry, src.material, instances.length);
+              inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
-                    const localPos = new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]);
-                    const worldY = this.getWorldY(localPos, group); // Ensure group's world matrix is updated if needed
-                    const ny = normals[i + 1];
-                    const slope = 1 - ny;
-                    const withinHeightRange = (heightMin === undefined || worldY >= heightMin) &&
-                                            (heightMax === undefined || worldY <= heightMax);
+              const m4 = new THREE.Matrix4();
+              const q  = new THREE.Quaternion();
+              const s3 = new THREE.Vector3();
 
-                    if (slope >= slopeStart && slope <= slopeEnd && withinHeightRange) {
-                        const baseSeedValue = seed + groupIndex * 200000 + iteration * 1000 + i;
-                        foliagePositions.push({
-                            position: localPos,
-                            normal: new THREE.Vector3(normals[i], normals[i + 1], normals[i + 2]),
-                            baseSeed: baseSeedValue,
-                            originalIndex: i / 3,
-                        });
-                    }
+              instances.forEach((d, i) => {
+                const ang    = this.seededRandom(d.seed, 3) * Math.PI * 2;
+                const scaleV = minS + this.seededRandom(d.seed, 4) * (maxS - minS);
+                const scaleY = scaleV * (0.8 + this.seededRandom(d.seed, 5) * 0.4);
+
+                if (rotT) {
+                  q.setFromUnitVectors(new THREE.Vector3(0,1,0), d.norm.normalize());
+                } else {
+                  q.identity();
                 }
-                // --- End Position Calculation ---
+                q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), ang));
 
-                if (foliagePositions.length === 0) continue;
+                s3.set(scaleV * src.scale.x, scaleY * src.scale.y, scaleV * src.scale.z);
 
-                // Group instances by variant with skip chance
-                const variantInstances: { [variantIndex: number]: typeof foliagePositions } = {};
-                for (const instanceData of foliagePositions) {
-                    const skipChance = this.seededRandom(instanceData.baseSeed, 9);
-                    if (skipChance < 0.4) continue;
+                const cluster = this.seededRandom(d.seed,7) < 0.3 ? 0.5 : 0.8;
+                const offX = (this.seededRandom(seed + d.idx*10 + groupIndex*100, 0) - 0.5)
+                            * cluster * scaleV * (iter * 0.1 + 1);
+                const offZ = (this.seededRandom(seed + d.idx*10 + groupIndex*100, 1) - 0.5)
+                            * cluster * scaleV * (iter * 0.1 + 1);
+                const dy   = Math.abs(d.norm.y) > 1e-6
+                           ? -(d.norm.x * offX + d.norm.z * offZ) / d.norm.y
+                           : 0;
+                const finalPos = new THREE.Vector3(d.pos.x + offX, d.pos.y + dy + ug, d.pos.z + offZ);
 
-                    const variantRandom = this.seededRandom(instanceData.baseSeed, 8);
-                    const variantIndex = Math.floor(variantRandom * prefabGroup.length);
-                    if (!variantInstances[variantIndex]) {
-                        variantInstances[variantIndex] = [];
-                    }
-                    variantInstances[variantIndex].push(instanceData);
-                }
+                m4.compose(finalPos, q, s3);
+                inst.setMatrixAt(i, m4);
+              });
 
-                // Create instanced meshes for each variant
-                for (const variantKey in variantInstances) {
-                    const variantIndex = parseInt(variantKey);
-                    const instances = variantInstances[variantIndex];
-                    const prefab = prefabGroup[variantIndex];
-                    if (!prefab) continue;
+              inst.instanceMatrix.needsUpdate = true;
+              inst.frustumCulled = true;
+              allMeshes.push(inst);
+            }
+          }
+        }
+      }
 
-                    // Use the cloned prefab instance from the master
-                    const instantiatedPrefab = this.getInstantiatedPrefab(prefab);
-                    if (!instantiatedPrefab) continue; // Already logged warning in getInstantiatedPrefab
-
-                    const sourcePrefabMeshes: THREE.Mesh[] = [];
-                    instantiatedPrefab.traverse(child => {
-                        // Ensure we only get direct Mesh children, or handle nested structures appropriately
-                        if (child instanceof THREE.Mesh) {
-                            sourcePrefabMeshes.push(child);
-                        }
-                    });
-
-                    // Important: Check if the *cloned* prefab actually contains meshes.
-                    if (sourcePrefabMeshes.length === 0) {
-                         console.warn(`Cloned prefab ${prefab.name} contains no Mesh children.`);
-                         continue; // Skip this variant if the base prefab has no meshes
-                    }
-
-                    sourcePrefabMeshes.forEach(sourcePrefabMesh => {
-                        // --- InstancedMesh Creation (No Caching) ---
-                        const numInstancesNeeded = instances.length;
-                        let foliageMesh: THREE.InstancedMesh;
-
-                        // Always create a new InstancedMesh.
-                        // Use the geometry and material from the cloned source prefab mesh.
-                        // DO NOT clone geometry/material here if they should be shared from the cloned prefab.
-                        const baseGeometry = sourcePrefabMesh.geometry;
-                        const baseMaterial = sourcePrefabMesh.material;
-                        foliageMesh = new THREE.InstancedMesh(
-                            baseGeometry, baseMaterial, numInstancesNeeded);
-                        foliageMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-                        // --- End InstancedMesh Creation ---
-
-                        const matrix = new THREE.Matrix4();
-                        const quaternion = new THREE.Quaternion();
-                        const scale = new THREE.Vector3();
-
-                        // Set transformation for each instance
-                        instances.forEach((instanceData, index) => {
-                             const { position, normal, baseSeed, originalIndex } = instanceData;
-                            const angle = this.seededRandom(baseSeed, 3) * Math.PI * 2;
-                            const scaleFactor = minScale + this.seededRandom(baseSeed, 4) * (maxScale - minScale);
-                            const randomScaleY = scaleFactor * (0.8 + this.seededRandom(baseSeed, 5) * 0.4);
-
-                            if (rotateWithTerrain) {
-                                quaternion.setFromUnitVectors(
-                                    new THREE.Vector3(0, 1, 0), normal.normalize());
-                            } else {
-                                quaternion.identity();
-                            }
-                            const randomYRotation = new THREE.Quaternion().setFromAxisAngle(
-                                new THREE.Vector3(0, 1, 0), angle);
-                            quaternion.multiply(randomYRotation);
-
-                            // Get the scale from the source prefab mesh
-                            const sourceScale = sourcePrefabMesh.scale;
-
-                            // Combine the source prefab's scale with the instance-specific random scale
-                            scale.set(
-                                scaleFactor * sourceScale.x,
-                                randomScaleY * sourceScale.y,
-                                scaleFactor * sourceScale.z
-                            );
-
-                            // Position jitter with clustering
-                            const clusterChance = this.seededRandom(baseSeed, 7);
-                            const jitterMultiplier = clusterChance < 0.3 ? 0.5 : 0.8; // Example clustering effect
-                            const offsetX = (this.seededRandom(seed + originalIndex * 10 + groupIndex * 100, 0) - 0.5)
-                                            * jitterMultiplier * scaleFactor * (iteration * 0.1 + 1);
-                            const offsetZ = (this.seededRandom(seed + originalIndex * 10 + groupIndex * 100, 1) - 0.5)
-                                            * jitterMultiplier * scaleFactor * (iteration * 0.1 + 1);
-
-                            const originalNormal = instanceData.normal;
-                            const deltaY = (Math.abs(originalNormal.y) > 1e-6)
-                                ? -(originalNormal.x * offsetX + originalNormal.z * offsetZ) / originalNormal.y
-                                : 0;
-
-                            const terrainY = position.y + deltaY;
-                            const finalY = terrainY + undergroundOffset;
-
-                            const finalPosition = new THREE.Vector3(
-                                position.x + offsetX,
-                                finalY,
-                                position.z + offsetZ
-                            );
-
-                            matrix.compose(finalPosition, quaternion, scale);
-                            foliageMesh.setMatrixAt(index, matrix);
-                        });
-
-                        foliageMesh.instanceMatrix.needsUpdate = true;
-                        foliageMesh.frustumCulled = true;
-                        allFoliageMeshes.push(foliageMesh);
-                    });
-
-                } // End loop variantKey
-            } // End loop iteration
-        }); // End loop groupKey
-
-        // Spawn foliage in batches
-        this.spawnFoliageBatched(foliageFolder, allFoliageMeshes, this.fBatchSize, this.fSpawnDelay);
-        group.add(foliageFolder);
+      // 8) Spawn in batches
+      await this.spawnFoliageBatched(foliageFolder, allMeshes, this.fBatchSize, this.fSpawnDelay);
+      group.add(foliageFolder);
     }
 
     private async spawnFoliageBatched(group: THREE.Group, meshes: THREE.InstancedMesh[], batchSize: number, delay: number) {
@@ -2768,7 +2744,6 @@ export default class RuntimeMapGen extends RE.Component {
             meshesToRemove.push(child);
           }
         });
-
         for (const mesh of meshesToRemove) {
           if (mesh instanceof THREE.InstancedMesh) {
              mesh.geometry.dispose();
@@ -2785,7 +2760,6 @@ export default class RuntimeMapGen extends RE.Component {
         }
         group.remove(foliageFolder);
       }
-
       // Clean up master prefabs if requested
       if (this.foliagePrefabsFolder) {
         // Only dispose if this is a complete cleanup (e.g., when stopping the component)
@@ -2808,7 +2782,7 @@ export default class RuntimeMapGen extends RE.Component {
           }
           this.object3d.remove(this.foliagePrefabsFolder);
           this.foliagePrefabsFolder = null;
-          this.globalInstantiatedPrefabs = {};
+          this.globalInstantiatedPrefabs = {}; // Clear the map
         }
       }
     }
@@ -2819,6 +2793,7 @@ export default class RuntimeMapGen extends RE.Component {
       worldPos.applyMatrix4(parent.matrixWorld);
       return worldPos.y;
     }
+
 
 
 
@@ -2904,14 +2879,9 @@ export default class RuntimeMapGen extends RE.Component {
       @RE.props.color() snowColorFilter = new THREE.Color(0xffffff);
 
 
-        @RE.props.group("🌿 Foliage", true)
+    @RE.props.group("🌿 Foliage", true)
     @RE.props.checkbox() enableFoliage: boolean = false;
-
-    @RE.props.list.prefab() fPrefabsGroup_0: RE.Prefab[] = [];
-    @RE.props.list.prefab() fPrefabsGroup_1: RE.Prefab[] = [];
-    @RE.props.list.prefab() fPrefabsGroup_2: RE.Prefab[] = [];
-    @RE.props.list.prefab() fPrefabsGroup_3: RE.Prefab[] = [];
-    // When you add new groups (like fPrefabsGroup_3) they will be detected automatically
+    @RE.props.text() foliagePrefabBasePath: string = "Foliage/";
 
     @RE.props.text() __________________________________: string = " ";
     @RE.props.list.num(0.005, 10) fDensities: number[] = [];

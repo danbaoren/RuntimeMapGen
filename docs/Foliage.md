@@ -20,17 +20,13 @@ It extracts all geometry from prefab and makes separate instanced mesh for each 
 
 The system supports multiple groups for different types of foliage variants (e.g., trees, rocks, grass) with distinct settings.
 
-* **`fPrefabsGroup_0`**
-  
-  * Holds the prefabs belonging to the first foliage group.
 
-* **`fPrefabsGroup_1`**
-  
-  * Holds the prefabs belonging to the second foliage group.
+in "Prefabs/Foliage/" create a new group with format "%index%_%Name%"
 
-* **`fPrefabsGroup_2`**
-  
-  * Holds the prefabs belonging to the third foliage group.
+%index% -- number to which settings will be applied inside component UI
+%Name% -- name of your folder for better readability, doesnt affect code and can be named as you want
+
+When folder created, put foliage prefabs into it. When code trying to place foliage, it will randomly select prefab object from this specific group.
 
 * **Note:** The system automatically detects new groups if added following the naming convention (e.g., `fPrefabsGroup_3`, `fPrefabsGroup_4`, etc.). Each group corresponds to an index in the settings lists below.
 

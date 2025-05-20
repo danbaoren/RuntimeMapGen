@@ -2,7 +2,7 @@
 
 <div align="center">
 <p align="center">
-  <img src="./img/preview.png" alt="RMG preview" width="1000" style="border-radius: 6px;"/>
+  <img src="./img/preview.webp" alt="RMG preview" width="1000" style="border-radius: 6px;"/>
 </p>
 
 </div>

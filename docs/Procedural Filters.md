@@ -44,11 +44,11 @@ Adds fractal noise for detail.
 <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; text-align: center;">
   <div>
     <h6>Before</h6>
-    <img src="./pf/fractalb.png" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/fractalb.webp" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
   <div>
     <h6>After</h6>
-    <img src="./pf/fractala.png" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/fractala.webp" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
 </div>
 
@@ -59,11 +59,11 @@ Simulates erosion effects typically found along coastlines.
 <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; text-align: center;">
   <div>
     <h6>Before</h6>
-    <img src="./pf/coastalb.png" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/coastalb.webp" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
   <div>
     <h6>After</h6>
-    <img src="./pf/coastala.png" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/coastala.webp" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
 </div>
 
@@ -74,11 +74,11 @@ Creates ridges across the terrain.
 <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; text-align: center;">
   <div>
     <h6>Before</h6>
-    <img src="./pf/ridgesb.png" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/ridgesb.webp" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
   <div>
     <h6>After</h6>
-    <img src="./pf/ridgesa.png" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/ridgesa.webp" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
 </div>
 
@@ -89,11 +89,11 @@ Smooths the terrain overall. Useful for blending results after multiple filter i
 <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; text-align: center;">
   <div>
     <h6>Before</h6>
-    <img src="./pf/erosionb.png" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/erosionb.webp" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
   <div>
     <h6>After</h6>
-    <img src="./pf/erosiona.png" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/erosiona.webp" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
 </div>
 
@@ -104,11 +104,11 @@ Creates flat-topped elevated areas. Iterate a few times at different heights to 
 <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; text-align: center;">
   <div>
     <h6>Before</h6>
-    <img src="./pf/plateausb.png" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/plateausb.webp" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
   <div>
     <h6>After</h6>
-    <img src="./pf/plateausa.png" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/plateausa.webp" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
 </div>
 
@@ -119,26 +119,24 @@ Carves valleys into the terrain.
 <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; text-align: center;">
   <div>
     <h6>Before</h6>
-    <img src="./pf/valleysb.png" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/valleysb.webp" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
   <div>
     <h6>After</h6>
-    <img src="./pf/valleysa.png" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/valleysa.webp" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
-</div>
-
-# Terracing
+</div>Terracing
 
 Creates step-like terraces, similar to mesas.
 
 <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; text-align: center;">
   <div>
     <h6>Before</h6>
-    <img src="./pf/terracingb.png" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/terracingb.webp" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
   <div>
     <h6>After</h6>
-    <img src="./pf/terracinga.png" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/terracinga.webp" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
 </div>
 
@@ -149,10 +147,10 @@ Generates steep cliff faces.
 <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; text-align: center;">
   <div>
     <h6>Before</h6>
-    <img src="./pf/cliffb.png" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/cliffb.webp" alt="Before" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
   <div>
     <h6>After</h6>
-    <img src="./pf/cliffa.png" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
+    <img src="./pf/cliffa.webp" alt="After" style="width:100%; max-width:700px; height:auto; display:block; margin:0 auto;">
   </div>
 </div>

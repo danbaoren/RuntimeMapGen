@@ -1,0 +1,155 @@
+{
+  "defaultBiomeName": "Forest",
+  "voidBiomeName": "Void",
+  "audioBaseDirectory": "MapGen/audio/",
+  "biomes": {
+    "#00ddff": {
+      "displayName": "Ocean",
+      "foliageIndexes": [],
+      "Sand_Texture": "MapGen/textures/ocean_sand.png",
+      "Dirt_Texture": "MapGen/textures/ocean_dirt.png",
+      "Grass_Texture": "MapGen/textures/ocean_grass.png",
+      "Stone_Texture": "MapGen/textures/ocean_stone.png",
+      "Snow_Texture": "MapGen/textures/ocean_snow.png",
+      "audio": {
+        "event": [
+          "ocean_event_01.wav"
+        ],
+        "loop": [
+          "ocean_loop_waves01.wav"
+        ],
+        "soundtrack": [
+          "ocean_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#fff600": {
+      "displayName": "Beach",
+      "foliageIndexes": [2, 3],
+      "Sand_Texture": "MapGen/textures/beach_sand.png",
+      "Dirt_Texture": "MapGen/textures/beach_dirt.png",
+      "Grass_Texture": "MapGen/textures/beach_grass.png",
+      "Stone_Texture": "MapGen/textures/beach_stone.png",
+      "Snow_Texture": "MapGen/textures/beach_snow.png",
+      "audio": {
+        "event": [
+          "beach_event_01.wav"
+        ],
+        "loop": [
+          "beach_loop_01.wav"
+        ],
+        "soundtrack": [
+          "beach_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#a0522d": {
+      "displayName": "Mountain",
+      "foliageIndexes": [],
+      "Sand_Texture": "MapGen/textures/mountain_sand.png",
+      "Dirt_Texture": "MapGen/textures/mountain_dirt.png",
+      "Grass_Texture": "MapGen/textures/mountain_grass.png",
+      "Stone_Texture": "MapGen/textures/mountain_stone.png",
+      "Snow_Texture": "MapGen/textures/mountain_snow.png",
+      "audio": {
+        "event": [
+          "mountain_event_01.wav"
+        ],
+        "loop": [
+          "mountain_loop_01.wav"
+        ],
+        "soundtrack": [
+          "mountain_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#005500": {
+      "displayName": "Taiga",
+      "foliageIndexes": [],
+      "Sand_Texture": "MapGen/textures/taiga_sand.png",
+      "Dirt_Texture": "MapGen/textures/taiga_dirt.png",
+      "Grass_Texture": "MapGen/textures/taiga_grass.png",
+      "Stone_Texture": "MapGen/textures/taiga_stone.png",
+      "Snow_Texture": "MapGen/textures/taiga_snow.png",
+      "audio": {
+        "event": [
+          "taiga_event_01.wav"
+        ],
+        "loop": [
+          "taiga_loop_01.wav"
+        ],
+        "soundtrack": [
+          "taiga_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#ffcc00": {
+      "displayName": "Desert",
+      "foliageIndexes": [],
+      "Sand_Texture": "MapGen/textures/desert_sand.png",
+      "Dirt_Texture": "MapGen/textures/desert_dirt.png",
+      "Grass_Texture": "MapGen/textures/desert_grass.png",
+      "Stone_Texture": "MapGen/textures/desert_stone.png",
+      "Snow_Texture": "MapGen/textures/desert_snow.png",
+      "audio": {
+        "event": [
+          "desert_event_01.wav"
+        ],
+        "loop": [
+          "desert_loop_01.wav"
+        ],
+        "soundtrack": [
+          "desert_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#00aa00": {
+      "displayName": "Forest",
+      "foliageIndexes": [0, 1, 2],
+      "Sand_Texture": "MapGen/textures/forest_sand.png",
+      "Dirt_Texture": "MapGen/textures/forest_dirt.png",
+      "Grass_Texture": "MapGen/textures/forest_grass.png",
+      "Stone_Texture": "MapGen/textures/forest_stone.png",
+      "Snow_Texture": "MapGen/textures/forest_snow.png",
+      "audio": {
+        "event": [
+          "forest_event_1.wav",
+          "forest_event_2.wav",
+          "forest_event_3.wav",
+          "forest_event_4.wav",
+          "forest_event_5.wav"
+        ],
+        "loop": [
+          "forest_event_birds1.wav"
+        ],
+        "soundtrack": [
+          "forest_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#55aa55": {
+      "displayName": "Valley",
+      "foliageIndexes": [0, 1, 2],
+      "Sand_Texture": "MapGen/textures/sand.png",
+      "Dirt_Texture": "MapGen/textures/dirt.png",
+      "Grass_Texture": "MapGen/textures/grass.png",
+      "Stone_Texture": "MapGen/textures/stone.png",
+      "Snow_Texture": "MapGen/textures/snow.png",
+      "audio": {
+        "event": [
+          "forest_event_1.wav",
+          "forest_event_2.wav",
+          "forest_event_3.wav",
+          "forest_event_4.wav",
+          "forest_event_5.wav"
+        ],
+        "loop": [
+          "forest_event_birds1.wav"
+        ],
+        "soundtrack": [
+          "valley_soundtrack_01.mp3"
+        ]
+      }
+    }
+  }
+}

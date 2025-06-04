@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import RuntimeMapGen from "./RuntimeMapGen.re";
 import RapierTrimesh from '@RE/RogueEngine/rogue-rapier/Components/Colliders/RapierTrimesh.re';
 import RapierBody from '@RE/RogueEngine/rogue-rapier/Components/RapierBody.re';
+import RapierConfig from '@RE/RogueEngine/rogue-rapier/Components/RapierConfig.re';
 
 
     type ChunkData = {
@@ -360,50 +361,7 @@ export default class RMG_Collision {
 
     // API
 
-    public async addCollisionAt(worldPos: THREE.Vector3): Promise<void> {
-    // Convert world position to original coordinates
-    const originalPos = RuntimeMapGen.get().worldToOriginalPosition(worldPos);
-    const chunkKey = RuntimeMapGen.get().getChunkKeyFromOriginalPos(originalPos.x, originalPos.z);
 
-    // Check if chunk exists
-    const chunkData = RuntimeMapGen.get().chunksMap.get(chunkKey);
-    if (!chunkData) {
-        console.warn(`Chunk at ${chunkKey} not found.`);
-        return;
-    }
-
-    // Check if collision is already active
-    if (RMG_Collision.activeCollisionChunks.has(chunkKey)) {
-        console.log(`Collision for chunk ${chunkKey} is already active.`);
-        return;
-    }
-
-    // Generate collision mesh
-    const collisionMesh = await this.generateCollisionMesh(chunkData);
-
-    // Add to scene and activeCollisionChunks
-    if (RMG_Collision.terrainColliderFolder) {
-        RMG_Collision.terrainColliderFolder.add(collisionMesh);
-        RMG_Collision.activeCollisionChunks.set(chunkKey, collisionMesh);
-    }
-}
-
-    public async removeCollisionAt(worldPos: THREE.Vector3): Promise<void> {
-        const originalPos = RuntimeMapGen.get().worldToOriginalPosition(worldPos);
-        const chunkKey = RuntimeMapGen.get().getChunkKeyFromOriginalPos(originalPos.x, originalPos.z);
-
-        if (!RMG_Collision.activeCollisionChunks.has(chunkKey)) {
-            console.warn(`Collision for chunk ${chunkKey} is not active.`);
-            return;
-        }
-
-        const collisionMesh = RMG_Collision.activeCollisionChunks.get(chunkKey)!;
-        if (RMG_Collision.terrainColliderFolder) {
-            RMG_Collision.terrainColliderFolder.remove(collisionMesh);
-            RMG_Collision.collisionChunkPool.push(collisionMesh);
-            RMG_Collision.activeCollisionChunks.delete(chunkKey);
-        }
-    }
 
     private async generateCollisionMesh(chunkData: ChunkData): Promise<THREE.Mesh> {
         let collisionMesh = RMG_Collision.collisionChunkPool.pop() as THREE.Mesh | undefined;
@@ -473,6 +431,17 @@ export default class RMG_Collision {
         collisionMesh.scale.set(1, 1, 1);
 
         return collisionMesh;
+    }
+
+
+
+    public static addRapierConfigToScene() {
+        const isConfigSet = RapierConfig.get(RE.Runtime.scene);
+        if (isConfigSet) {return;}
+
+      const rapierConfig = new RapierConfig("RapierConfig", RE.Runtime.scene);
+            rapierConfig.gravity = RuntimeMapGen.get().RapierConfig_gravity
+          RE.addComponent(rapierConfig);
     }
 
 

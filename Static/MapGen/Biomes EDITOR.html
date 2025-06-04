@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biome Data Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .container {
+            display: flex;
+            flex-grow: 1;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 20px auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+
+        .sidebar {
+            flex: 0 0 300px;
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 15px;
+            min-width: 600px; /* Ensure content doesn't get too squashed */
+        }
+
+        h2, h3 {
+            color: #2c3e50;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            margin-top: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="color"],
+        textarea {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box; /* Include padding in width */
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button.delete-button {
+            background-color: #e74c3c;
+        }
+
+        button.delete-button:hover {
+            background-color: #c0392b;
+        }
+
+        .file-drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+
+        .file-drop-area.highlight {
+            border-color: #3498db;
+            background-color: #eaf6fd;
+        }
+
+        .file-drop-area p {
+            margin: 0;
+            color: #777;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        #biomeList {
+            list-style: none;
+            padding: 0;
+        }
+
+        #biomeList li {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        #biomeList li:hover {
+            background-color: #f0f0f0;
+        }
+
+        #biomeList li.selected {
+            background-color: #dbe9f6;
+            border-color: #3498db;
+            font-weight: bold;
+        }
+
+        .biome-color-preview {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .array-input-group {
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            background-color: #fcfcfc;
+        }
+
+        .array-input-group label {
+            margin-bottom: 8px;
+            font-weight: normal;
+        }
+
+        .array-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .array-item input {
+            flex-grow: 1;
+            margin-right: 10px;
+            width: auto; /* Override general input width */
+        }
+
+        .add-item-button, .remove-item-button {
+            padding: 5px 10px;
+            font-size: 0.9rem;
+            margin-top: 0;
+            margin-left: 5px;
+        }
+
+        .remove-item-button {
+            background-color: #e74c3c;
+        }
+        .remove-item-button:hover {
+            background-color: #c0392b;
+        }
+
+        .add-item-button {
+             background-color: #27ae60;
+        }
+        .add-item-button:hover {
+            background-color: #229a56;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        footer {
+            text-align: center;
+            padding: 15px;
+            margin-top: auto;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            font-size: 0.9em;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* New styles for image and canvas */
+        #imageUploadArea {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: border-color 0.3s ease, background-color 0.3s ease;
+        }
+
+        #imageUploadArea.highlight {
+            border-color: #3498db;
+            background-color: #eaf6fd;
+        }
+
+        #imageUploadArea p {
+            margin: 0;
+            color: #777;
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        #terrainCanvas {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+            /* Keep internal resolution high, scale display with CSS */
+            width: 100%; /* Make canvas responsive to container width */
+            height: auto; /* Maintain aspect ratio */
+            display: block; /* Remove extra space below canvas */
+        }
+
+        .drawing-controls {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+        }
+
+        .drawing-controls label {
+            margin: 0;
+            font-weight: normal;
+        }
+
+        .drawing-controls input[type="color"] {
+            width: 40px;
+            height: 30px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+
+        .drawing-controls input[type="range"] {
+            width: 100px;
+            flex-grow: 1; /* Allow range input to take more space */
+        }
+        #saveImageButton {
+            background-color: #28a745; /* Green color for save */
+        }
+        #saveImageButton:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Biome Data Editor</h1>
+        <p>Load, edit, and save your biomes.json file, and visually edit biome distribution.</p>
+    </header>
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2>Load/Save</h2>
+            <div id="dropArea" class="file-drop-area">
+                <p>Drag & Drop your <strong>biomes.json</strong> here</p>
+                <p>or</p>
+                <button onclick="document.getElementById('fileInput').click()">Select JSON File</button>
+                <input type="file" id="fileInput" accept=".json">
+            </div>
+            <div id="imageUploadArea">
+                <p>Drag & Drop your <strong>terrain image</strong> here</p>
+                <p>or</p>
+                <button onclick="document.getElementById('imageInput').click()">Select Image</button>
+                <input type="file" id="imageInput" accept="image/*">
+            </div>
+            <button id="downloadJson" style="display: none;">Download biomes.json</button>
+
+            <h2>Global Settings</h2>
+            <div class="form-group">
+                <label for="defaultBiomeName">Default Biome Name:</label>
+                <input type="text" id="defaultBiomeName">
+            </div>
+            <div class="form-group">
+                <label for="voidBiomeName">Void Biome Name:</label>
+                <input type="text" id="voidBiomeName">
+            </div>
+            <div class="form-group">
+                <label for="audioBaseDirectory">Audio Base Directory:</label>
+                <input type="text" id="audioBaseDirectory">
+            </div>
+
+            <h2>Biomes</h2>
+            <ul id="biomeList">
+                </ul>
+            <button id="addBiomeButton">Add New Biome</button>
+        </aside>
+
+        <main class="main-content">
+            <h2 id="currentBiomeTitle">Select a Biome to Edit</h2>
+            <div id="biomeEditor" style="display: none;">
+                <div class="form-group flex-row">
+                    <label for="biomeColor">Color (Hex):</label>
+                    <input type="color" id="biomeColor" value="#000000">
+                    <input type="text" id="biomeColorHex" placeholder="#RRGGBB">
+                </div>
+                <div class="form-group">
+                    <label for="displayName">Display Name:</label>
+                    <input type="text" id="displayName">
+                </div>
+
+                <div class="array-input-group">
+                    <label>Foliage Indexes (comma separated numbers):</label>
+                    <input type="text" id="foliageIndexes" placeholder="e.g., 0, 2, 5">
+                </div>
+
+                <div class="array-input-group">
+                    <label>Textures:</label>
+                    <div id="texturesContainer"></div>
+                    <button class="add-item-button" onclick="addArrayItem('texturesContainer', 'textures')">Add Texture</button>
+                </div>
+
+                <h3>Audio Settings</h3>
+                <div class="array-input-group">
+                    <label>Event Sounds:</label>
+                    <div id="audioEventContainer"></div>
+                    <button class="add-item-button" onclick="addArrayItem('audioEventContainer', 'audio.event')">Add Event Sound</button>
+                </div>
+
+                <div class="array-input-group">
+                    <label>Loop Sounds:</label>
+                    <div id="audioLoopContainer"></div>
+                    <button class="add-item-button" onclick="addArrayItem('audioLoopContainer', 'audio.loop')">Add Loop Sound</button>
+                </div>
+
+                <div class="array-input-group">
+                    <label>Soundtracks:</label>
+                    <div id="audioSoundtrackContainer"></div>
+                    <button class="add-item-button" onclick="addArrayItem('audioSoundtrackContainer', 'audio.soundtrack')">Add Soundtrack</button>
+                </div>
+
+                <button class="delete-button" id="deleteBiomeButton">Delete Selected Biome</button>
+            </div>
+
+            <h2>Terrain Map Editor</h2>
+            <canvas id="terrainCanvas"></canvas>
+            <div class="drawing-controls">
+                <label for="brushColor">Brush Color:</label>
+                <input type="color" id="brushColor" value="#ff0000">
+                <label for="brushSize">Brush Size:</label>
+                <input type="range" id="brushSize" min="1" max="50" value="10">
+            </div>
+            <button id="saveImageButton">Save Image</button>
+        </main>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Biome Data Editor. Created for quick configuration.</p>
+    </footer>
+
+    <script>
+        let biomeData = {};
+        let currentBiomeKey = null; // Stores the hex color key of the currently selected biome
+        let terrainImage = null;
+
+        // Canvas and drawing variables
+        let canvas;
+        let ctx;
+        let drawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let brushColor = '#ff0000';
+        let brushSize = 10;
+
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const downloadJsonButton = document.getElementById('downloadJson');
+        const biomeList = document.getElementById('biomeList');
+        const biomeEditor = document.getElementById('biomeEditor');
+        const currentBiomeTitle = document.getElementById('currentBiomeTitle');
+        const addBiomeButton = document.getElementById('addBiomeButton');
+        const deleteBiomeButton = document.getElementById('deleteBiomeButton');
+
+        // Global settings inputs
+        const defaultBiomeNameInput = document.getElementById('defaultBiomeName');
+        const voidBiomeNameInput = document.getElementById('voidBiomeName');
+        const audioBaseDirectoryInput = document.getElementById('audioBaseDirectory');
+
+        // Biome editor inputs
+        const biomeColorInput = document.getElementById('biomeColor');
+        const biomeColorHexInput = document.getElementById('biomeColorHex');
+        const displayNameInput = document.getElementById('displayName');
+        const foliageIndexesInput = document.getElementById('foliageIndexes');
+
+        // Image upload elements
+        const imageUploadArea = document.getElementById('imageUploadArea');
+        const imageInput = document.getElementById('imageInput');
+
+        // Canvas and drawing controls
+        canvas = document.getElementById('terrainCanvas');
+        ctx = canvas.getContext('2d');
+        const brushColorInput = document.getElementById('brushColor');
+        const brushSizeInput = document.getElementById('brushSize');
+        const saveImageButton = document.getElementById('saveImageButton'); // New button
+
+        // --- Event Listeners ---
+
+        // Global settings event listeners
+        defaultBiomeNameInput.addEventListener('input', (e) => {
+            if (biomeData) biomeData.defaultBiomeName = e.target.value;
+        });
+        voidBiomeNameInput.addEventListener('input', (e) => {
+            if (biomeData) biomeData.voidBiomeName = e.target.value;
+        });
+        audioBaseDirectoryInput.addEventListener('input', (e) => {
+            if (biomeData) biomeData.audioBaseDirectory = e.target.value;
+        });
+
+        // File handling event listeners (JSON)
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.classList.add('highlight');
+        });
+
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('highlight');
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.classList.remove('highlight');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleJsonFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleJsonFile(e.target.files[0]);
+            }
+        });
+
+        downloadJsonButton.addEventListener('click', () => {
+            if (!biomeData || Object.keys(biomeData).length === 0) {
+                alert('No data to download!');
+                return;
+            }
+            const jsonString = JSON.stringify(biomeData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'biomes.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Image upload event listeners
+        imageUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            imageUploadArea.classList.add('highlight');
+        });
+
+        imageUploadArea.addEventListener('dragleave', () => {
+            imageUploadArea.classList.remove('highlight');
+        });
+
+        imageUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            imageUploadArea.classList.remove('highlight');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleImageFile(files[0]);
+            }
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleImageFile(e.target.files[0]);
+            }
+        });
+
+        saveImageButton.addEventListener('click', () => {
+            if (!terrainImage) {
+                alert('No image loaded to save!');
+                return;
+            }
+            const dataURL = canvas.toDataURL('image/png'); // Can be 'image/jpeg' as well
+            const a = document.createElement('a');
+            a.href = dataURL;
+            a.download = 'biome_terrain_map.png'; // Suggested filename
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // Biome list event listeners
+        addBiomeButton.addEventListener('click', () => {
+            const newColor = generateUniqueHexColor();
+            const newBiome = {
+                displayName: "New Biome",
+                foliageIndexes: [],
+                textures: [],
+                audio: {
+                    event: [],
+                    loop: [],
+                    soundtrack: []
+                }
+            };
+            if (!biomeData.biomes) {
+                biomeData.biomes = {};
+            }
+            biomeData.biomes[newColor] = newBiome;
+            populateBiomeList();
+            selectBiome(newColor);
+        });
+
+        deleteBiomeButton.addEventListener('click', () => {
+            if (currentBiomeKey && confirm(`Are you sure you want to delete the biome "${biomeData.biomes[currentBiomeKey].displayName}"?`)) {
+                delete biomeData.biomes[currentBiomeKey];
+                currentBiomeKey = null;
+                populateBiomeList(); // Re-populate list, which will also select the first biome or hide editor
+            }
+        });
+
+        // Canvas drawing event listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing); // Stop drawing if mouse leaves canvas
+        canvas.addEventListener('mousemove', draw);
+
+        brushColorInput.addEventListener('input', (e) => {
+            brushColor = e.target.value;
+            // ctx.strokeStyle will be set in draw for each stroke
+        });
+
+        brushSizeInput.addEventListener('input', (e) => {
+            brushSize = parseInt(e.target.value);
+            // ctx.lineWidth will be set in draw for each stroke
+        });
+
+        // --- Functions ---
+
+        // File handling functions
+        function handleJsonFile(file) {
+            if (file.type !== 'application/json') {
+                alert('Please drop a JSON file.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    biomeData = JSON.parse(e.target.result);
+                    populateGlobalSettings();
+                    populateBiomeList();
+                    downloadJsonButton.style.display = 'block';
+                    alert('biomes.json loaded successfully!');
+                } catch (error) {
+                    alert('Error parsing JSON file: ' + error.message);
+                    console.error('Error parsing JSON:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function handleImageFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please drop an image file.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                terrainImage = new Image();
+                terrainImage.onload = () => {
+                    // Set canvas internal resolution to match image
+                    canvas.width = terrainImage.width;
+                    canvas.height = terrainImage.height;
+                    
+                    // Draw the image
+                    ctx.drawImage(terrainImage, 0, 0, canvas.width, canvas.height);
+                    
+                    // Reset stroke style for drawing
+                    ctx.strokeStyle = brushColor;
+                    ctx.lineWidth = brushSize;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round'; // Make drawing smoother
+                };
+                terrainImage.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Global settings population function
+        function populateGlobalSettings() {
+            defaultBiomeNameInput.value = biomeData.defaultBiomeName || '';
+            voidBiomeNameInput.value = biomeData.voidBiomeName || '';
+            audioBaseDirectoryInput.value = biomeData.audioBaseDirectory || '';
+        }
+
+        // Biome list management functions
+        function populateBiomeList() {
+            biomeList.innerHTML = ''; // Clear existing list
+            if (!biomeData.biomes) {
+                biomeData.biomes = {}; // Initialize if not present
+            }
+
+            // Sort biomes by display name for better organization
+            const sortedBiomeKeys = Object.keys(biomeData.biomes).sort((a, b) => {
+                const nameA = biomeData.biomes[a].displayName || '';
+                const nameB = biomeData.biomes[b].displayName || '';
+                return nameA.localeCompare(nameB);
+            });
+
+            sortedBiomeKeys.forEach(key => {
+                const biome = biomeData.biomes[key];
+                const listItem = document.createElement('li');
+                listItem.dataset.biomeKey = key;
+                listItem.innerHTML = `
+                    <div class="flex-row">
+                        <div class="biome-color-preview" style="background-color: ${key};"></div>
+                        <span>${biome.displayName || 'Unnamed Biome'} (${key})</span>
+                    </div>
+                `;
+                listItem.addEventListener('click', () => selectBiome(key));
+                biomeList.appendChild(listItem);
+            });
+
+            // If a biome was previously selected, re-select it
+            if (currentBiomeKey && biomeData.biomes[currentBiomeKey]) {
+                selectBiome(currentBiomeKey);
+            } else if (Object.keys(biomeData.biomes).length > 0) {
+                // If no biome was selected or it was deleted, select the first one (which is now sorted first)
+                selectBiome(sortedBiomeKeys[0]);
+            } else {
+                hideBiomeEditor();
+            }
+        }
+
+        function selectBiome(key) {
+            // Remove 'selected' class from previously selected item
+            if (currentBiomeKey) {
+                const prevSelected = document.querySelector(`#biomeList li[data-biome-key="${currentBiomeKey}"]`);
+                if (prevSelected) prevSelected.classList.remove('selected');
+            }
+
+            currentBiomeKey = key;
+            const selectedBiome = biomeData.biomes[key];
+
+            // Add 'selected' class to the new item
+            const newSelected = document.querySelector(`#biomeList li[data-biome-key="${currentBiomeKey}"]`);
+            if (newSelected) newSelected.classList.add('selected');
+
+            currentBiomeTitle.textContent = `Editing: ${selectedBiome.displayName || 'Unnamed Biome'} (${key})`;
+            biomeEditor.style.display = 'block';
+            populateBiomeEditor(selectedBiome);
+
+            // Update brush color to match selected biome
+            brushColor = currentBiomeKey;
+            brushColorInput.value = currentBiomeKey;
+            ctx.strokeStyle = brushColor; // Update context for drawing
+        }
+
+        function hideBiomeEditor() {
+            currentBiomeKey = null;
+            currentBiomeTitle.textContent = 'Select a Biome to Edit';
+            biomeEditor.style.display = 'none';
+            const selected = document.querySelector(`#biomeList li.selected`);
+            if (selected) selected.classList.remove('selected');
+        }
+
+        // Biome editor population & update functions
+        function populateBiomeEditor(biome) {
+            biomeColorInput.value = currentBiomeKey;
+            biomeColorHexInput.value = currentBiomeKey;
+            displayNameInput.value = biome.displayName || '';
+            foliageIndexesInput.value = Array.isArray(biome.foliageIndexes) ? biome.foliageIndexes.join(', ') : '';
+
+            // Populate array inputs
+            populateArrayInput('texturesContainer', biome.textures || [], 'textures');
+            populateArrayInput('audioEventContainer', (biome.audio && biome.audio.event) || [], 'audio.event');
+            populateArrayInput('audioLoopContainer', (biome.audio && biome.audio.loop) || [], 'audio.loop');
+            populateArrayInput('audioSoundtrackContainer', (biome.audio && biome.audio.soundtrack) || [], 'audio.soundtrack');
+        }
+
+        biomeColorInput.addEventListener('input', (e) => {
+            const newColor = e.target.value.toLowerCase(); // Ensure lowercase for consistency
+            biomeColorHexInput.value = newColor;
+            updateBiomeColor(newColor);
+        });
+        biomeColorHexInput.addEventListener('input', (e) => {
+            let newColor = e.target.value.trim().toLowerCase();
+            if (!newColor.startsWith('#')) { // Add '#' if missing
+                newColor = '#' + newColor;
+            }
+            if (/^#[0-9a-fA-F]{6}$/.test(newColor)) { // Basic hex validation
+                biomeColorInput.value = newColor; // Update color picker if valid
+                updateBiomeColor(newColor);
+            }
+        });
+        displayNameInput.addEventListener('input', (e) => {
+            if (currentBiomeKey && biomeData.biomes[currentBiomeKey]) {
+                biomeData.biomes[currentBiomeKey].displayName = e.target.value;
+                // Update display name in biome list immediately
+                const listItem = document.querySelector(`#biomeList li[data-biome-key="${currentBiomeKey}"]`);
+                if (listItem) {
+                    listItem.querySelector('span').textContent = `${e.target.value} (${currentBiomeKey})`;
+                }
+                currentBiomeTitle.textContent = `Editing: ${e.target.value} (${currentBiomeKey})`;
+            }
+        });
+        foliageIndexesInput.addEventListener('input', (e) => {
+            if (currentBiomeKey && biomeData.biomes[currentBiomeKey]) {
+                const indexes = e.target.value.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                biomeData.biomes[currentBiomeKey].foliageIndexes = indexes;
+            }
+        });
+
+
+        function updateBiomeColor(newColor) {
+            if (!currentBiomeKey || newColor === currentBiomeKey) return;
+
+            const oldKey = currentBiomeKey;
+            const biome = biomeData.biomes[oldKey];
+
+            if (biomeData.biomes[newColor]) {
+                alert(`Biome with color ${newColor} already exists! Please choose a unique color.`);
+                // Revert color input to old key
+                biomeColorInput.value = oldKey;
+                biomeColorHexInput.value = oldKey;
+                return;
+            }
+
+            // Update the key in the biomes object
+            biomeData.biomes[newColor] = biome;
+            delete biomeData.biomes[oldKey];
+            currentBiomeKey = newColor; // Update current key
+
+            // Re-populate the list to reflect the key change and re-select
+            populateBiomeList(); // This also calls selectBiome
+            
+            // Update brush color to reflect new biome color
+            brushColor = newColor;
+            brushColorInput.value = newColor;
+            ctx.strokeStyle = brushColor;
+        }
+
+        // Generic array input management functions
+        function populateArrayInput(containerId, dataArray, dataPath) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = ''; // Clear existing inputs
+
+            dataArray.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.classList.add('array-item');
+                div.innerHTML = `
+                    <input type="text" value="${item}" data-index="${index}">
+                    <button class="remove-item-button" data-index="${index}">Remove</button>
+                `;
+                const input = div.querySelector('input');
+                const removeButton = div.querySelector('.remove-item-button');
+
+                input.addEventListener('input', (e) => updateArrayItem(dataPath, index, e.target.value));
+                removeButton.addEventListener('click', () => removeArrayItem(containerId, dataPath, index));
+                container.appendChild(div);
+            });
+        }
+
+        function addArrayItem(containerId, dataPath, initialValue = '') {
+            if (!currentBiomeKey) return;
+
+            let targetArray;
+            if (dataPath.includes('.')) {
+                const parts = dataPath.split('.');
+                targetArray = biomeData.biomes[currentBiomeKey][parts[0]][parts[1]];
+                if (!targetArray) {
+                    biomeData.biomes[currentBiomeKey][parts[0]] = {};
+                    biomeData.biomes[currentBiomeKey][parts[0]][parts[1]] = [];
+                    targetArray = biomeData.biomes[currentBiomeKey][parts[0]][parts[1]];
+                }
+            } else {
+                targetArray = biomeData.biomes[currentBiomeKey][dataPath];
+                if (!targetArray) {
+                    biomeData.biomes[currentBiomeKey][dataPath] = [];
+                    targetArray = biomeData.biomes[currentBiomeKey][dataPath];
+                }
+            }
+
+            targetArray.push(initialValue);
+            populateArrayInput(containerId, targetArray, dataPath);
+        }
+
+        function updateArrayItem(dataPath, index, newValue) {
+            if (!currentBiomeKey) return;
+            if (dataPath.includes('.')) {
+                const parts = dataPath.split('.');
+                biomeData.biomes[currentBiomeKey][parts[0]][parts[1]][index] = newValue;
+            } else {
+                biomeData.biomes[currentBiomeKey][dataPath][index] = newValue;
+            }
+        }
+
+        function removeArrayItem(containerId, dataPath, indexToRemove) {
+            if (!currentBiomeKey) return;
+
+            let targetArray;
+            if (dataPath.includes('.')) {
+                const parts = dataPath.split('.');
+                targetArray = biomeData.biomes[currentBiomeKey][parts[0]][parts[1]];
+            } else {
+                targetArray = biomeData.biomes[currentBiomeKey][dataPath];
+            }
+
+            targetArray.splice(indexToRemove, 1);
+            populateArrayInput(containerId, targetArray, dataPath);
+        }
+
+        // Helper to generate a unique hex color (for new biomes)
+        function generateUniqueHexColor() {
+            let color;
+            do {
+                color = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            } while (biomeData.biomes && biomeData.biomes[color]);
+            return color;
+        }
+
+        // Canvas drawing functions
+        function getCanvasCoordinates(e) {
+            // Get the bounding rectangle of the canvas
+            const rect = canvas.getBoundingClientRect();
+            
+            // Calculate scaling factors based on CSS displayed size vs internal resolution
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            // Adjust mouse coordinates to internal canvas resolution
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            return { x, y };
+        }
+
+        function startDrawing(e) {
+            drawing = true;
+            const { x, y } = getCanvasCoordinates(e);
+            lastX = x;
+            lastY = y;
+            ctx.beginPath(); // Start a new path
+            ctx.moveTo(lastX, lastY); // Move to the starting point
+        }
+
+        function stopDrawing() {
+            drawing = false;
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+
+            const { x, y } = getCanvasCoordinates(e);
+
+            ctx.lineWidth = brushSize;
+            ctx.strokeStyle = brushColor;
+            
+            ctx.lineTo(x, y); // Draw a line from last point to current point
+            ctx.stroke();
+            
+            lastX = x; // Update last point
+            lastY = y;
+        }
+    </script>
+</body>
+</html>

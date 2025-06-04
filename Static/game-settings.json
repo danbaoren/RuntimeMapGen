@@ -1,0 +1,41 @@
+[
+  {
+    "id": "graphics",
+    "title": "Graphics",
+    "settings": [
+      {
+        "id": "highRenderDistance",
+        "label": "Render distance:",
+        "type": "slider",
+        "initialValue": 3,
+        "controlProps": { "min": 1, "max": 20, "step": 1 },
+        "handler": "handleHighRenderDistance",
+        "getCurrentValue": "getHighRenderDistance"
+      },
+      {
+        "id": "lowRenderDistance",
+        "label": "LOD render distance:",
+        "type": "slider",
+        "initialValue": 14,
+        "controlProps": { "min": 1, "max": 40, "step": 1 },
+        "handler": "handleLowRenderDistance",
+        "getCurrentValue": "getLowRenderDistance"
+      }
+    ]
+  },
+  {
+    "id": "audio",
+    "title": "Audio",
+    "settings": [
+      {
+        "id": "masterVolume",
+        "label": "Master Volume:",
+        "type": "slider",
+        "initialValue": 100,
+        "controlProps": { "min": 0, "max": 100, "step": 1 },
+        "handler": "handleMasterVolume",
+        "getCurrentValue": "getMasterVolume"
+      }
+    ]
+  }
+]

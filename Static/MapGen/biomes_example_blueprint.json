@@ -1,0 +1,141 @@
+{
+  "defaultBiomeName": "Forest",
+  "voidBiomeName": "Void",
+  "audioBaseDirectory": "MapGen/audio/",
+  "texturesBaseDirectory": "MapGen/textures/",
+  "biomes": {
+    "#00ddff": {
+      "displayName": "Ocean",
+      "foliageIndexes": [],
+      "textures": [
+        "ocean_ground.png",
+        "ocean_detail.ktx2"
+      ],
+      "audio": {
+        "event": [
+          "ocean_event_01.wav"
+        ],
+        "loop": [
+          "ocean_loop_01.wav"
+        ],
+        "soundtrack": [
+          "ocean_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#fff600": {
+      "displayName": "Beach",
+      "foliageIndexes": [],
+      "textures": [
+        "beach_ground.png",
+        "beach_detail.ktx2"
+      ],
+      "audio": {
+        "event": [
+          "beach_event_01.wav"
+        ],
+        "loop": [
+          "beach_loop_01.wav"
+        ],
+        "soundtrack": [
+          "beach_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#a0522d": {
+      "displayName": "Mountain",
+      "foliageIndexes": [],
+      "textures": [
+        "mountain_ground.png",
+        "mountain_detail.ktx2"
+      ],
+      "audio": {
+        "event": [
+          "mountain_event_01.wav"
+        ],
+        "loop": [
+          "mountain_loop_01.wav"
+        ],
+        "soundtrack": [
+          "mountain_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#005500": {
+      "displayName": "Taiga",
+      "foliageIndexes": [],
+      "textures": [
+        "taiga_ground.png",
+        "taiga_detail.ktx2"
+      ],
+      "audio": {
+        "event": [
+          "taiga_event_01.wav"
+        ],
+        "loop": [
+          "taiga_loop_01.wav"
+        ],
+        "soundtrack": [
+          "taiga_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#ffcc00": {
+      "displayName": "Desert",
+      "foliageIndexes": [],
+      "textures": [
+        "desert_ground.png",
+        "desert_detail.ktx2"
+      ],
+      "audio": {
+        "event": [
+          "desert_event_01.wav"
+        ],
+        "loop": [
+          "desert_loop_01.wav"
+        ],
+        "soundtrack": [
+          "desert_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#00aa00": {
+      "displayName": "Forest",
+      "foliageIndexes": [],
+      "textures": [
+        "forest_ground.png",
+        "forest_detail.ktx2"
+      ],
+      "audio": {
+        "event": [
+          "forest_event_01.wav"
+        ],
+        "loop": [
+          "forest_loop_01.wav"
+        ],
+        "soundtrack": [
+          "forest_soundtrack_01.mp3"
+        ]
+      }
+    },
+    "#55aa55": {
+      "displayName": "Valley",
+      "foliageIndexes": [],
+      "textures": [
+        "valley_ground.png",
+        "valley_detail.ktx2"
+      ],
+      "audio": {
+        "event": [
+          "valley_event_01.wav"
+        ],
+        "loop": [
+          "valley_loop_01.wav"
+        ],
+        "soundtrack": [
+          "valley_soundtrack_01.mp3"
+        ]
+      }
+    }
+  }
+}

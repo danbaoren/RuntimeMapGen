@@ -57,3 +57,13 @@ Fast, modular terrain deployment for WebGL/Three.js games using RogueEngine.
 - There's other software [Gaea](https://quadspinner.com/), similar to WorldMachine but newer and free.
 
 - Earth heightmaps with good resolution: [Tangram Heightmapper](https://tangrams.github.io/heightmapper/)
+
+<div align="center">
+<p align="center">
+  <img src="./img/pink.webp" alt="pink" width="1000" style="border-radius: 6px;"/>
+</p>
+
+<div align="center">
+<p align="center">
+  <img src="./img/red.webp" alt="red" width="1000" style="border-radius: 6px;"/>
+</p>

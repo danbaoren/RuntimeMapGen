@@ -38,7 +38,7 @@ export class BiomeCache {
     private terrainWidth: number;
     private terrainHeight: number;
     private offset: THREE.Vector3;
-    private cleanupInterval: NodeJS.Timeout | null = null;
+    private cleanupInterval: ReturnType<typeof setTimeout> | null = null;
 
     constructor(cellSize: number, terrainWidth: number, terrainHeight: number, offset: THREE.Vector3) {
         this.cellSize = cellSize;

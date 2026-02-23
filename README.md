@@ -1,4 +1,4 @@
-# Runtime MapGen  [OUTDATED for new engine Versions]
+# Runtime MapGen  [Semi-maintaned]
 
 <div align="center">
 <p align="center">

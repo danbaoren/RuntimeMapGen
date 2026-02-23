@@ -9,6 +9,9 @@
 
 Fast, modular terrain deployment for WebGL/Three.js games using RogueEngine.
 
+For now it used as reference and starting point for better Terrain engines,
+Its possible to use it for games, altho requires better chunking strategy
+
 ---
 
 ## Features

@@ -396,19 +396,16 @@
                     const now = Date.now();
                     const transitionDelay = 1; // Delay (in ms) before switching to high-detail material
                     const highRenderDistanceSquared = this.highRenderDistanceSquared;
+                    const LOD_HYSTERESIS = 1.3;
+                    const highToLowThresholdSquared = highRenderDistanceSquared * LOD_HYSTERESIS * LOD_HYSTERESIS;
                     const offsetX = this.Offset.x;
                     const offsetZ = this.Offset.z;
                     const scaleX = this.Scale.x;
                     const scaleZ = this.Scale.z;
                     const invScaleX = scaleX !== 0 ? 1 / scaleX : 1;
                     const invScaleZ = scaleZ !== 0 ? 1 / scaleZ : 1;
-                    const cullingThreshold = Math.cos(THREE.MathUtils.degToRad(this.backfaceCullingAngle));
-            
-                    // Temporary vectors to avoid allocation
                     const camPos = new THREE.Vector3();
                     const groupPos = new THREE.Vector3();
-                    const chunkDirection = new THREE.Vector3();
-                    const chunkHorizontal = new THREE.Vector3();
             
                     // Get the camera's world position and direction
                     const camera = this.activeCameras[0];
@@ -422,8 +419,6 @@
                     // Convert camera position to "original space"
                     const originalCamX = (offsetCamPos.x - offsetX) * invScaleX;
                     const originalCamZ = (offsetCamPos.z - offsetZ) * invScaleZ;
-                    const cameraHorizontal = new THREE.Vector3(this.cameraDirection.x, 0, this.cameraDirection.z).normalize();
-            
                     // Array to hold chunks that require high-detail processing
                     const chunksNeedingHighDetail: { group: THREE.Group; distanceSquared: number }[] = [];
             
@@ -467,25 +462,8 @@
                         const group = this.lodGroups[i];
                         group.getWorldPosition(groupPos);
             
-                        // Determine the horizontal direction from the camera to the chunk
-                        chunkDirection.copy(groupPos).sub(offsetCamPos).normalize();
-                        chunkHorizontal.set(chunkDirection.x, 0, chunkDirection.z).normalize();
-            
-                        // Culling: if the chunk is not sufficiently facing the camera, schedule deactivation and skip it
-                        const horizontalDot = cameraHorizontal.dot(chunkHorizontal);
-                        const hasHighDetail = group.children.some(c => c.name === 'high');
-            
-                        if (horizontalDot < cullingThreshold) {
-                            if (hasHighDetail) {
-                                this.fastDeactivateHighDetailChunk(group);
-                            } else {
-                                this.scheduleChunkDeactivation(group);
-                            }
-                            continue;
-                        } else {
-                            this.cancelChunkDeactivation(group);
-                            group.visible = true;
-                        }
+                        this.cancelChunkDeactivation(group);
+                        group.visible = true;
             
                         // Calculate the chunk's squared distance (in chunk units)
                         const originalGroupX = (groupPos.x - offsetX) * invScaleX;
@@ -509,21 +487,23 @@
                             }
                         }
             
-                        // Within high-detail range
-                        if (distanceSquared <= highRenderDistanceSquared) {
+                        // Use hysteresis: chunks already showing high detail stay high
+                        // until the camera moves further away (highToLowThresholdSquared),
+                        // while new chunks only switch to high at the tighter threshold.
+                        const isCurrentlyHigh = highMesh?.visible === true;
+                        const effectiveThreshold = isCurrentlyHigh ? highToLowThresholdSquared : highRenderDistanceSquared;
+
+                        if (distanceSquared <= effectiveThreshold) {
                             chunksNeedingHighDetail.push({ group, distanceSquared });
                             if (highMesh) {
-                                // If a high-detail mesh exists, start (or continue) the transition timer
                                 if (!group.userData.highTransitionStart) {
                                     group.userData.highTransitionStart = now;
                                 }
                                 if (now - group.userData.highTransitionStart >= transitionDelay) {
-                                    // Transition complete: show the high-detail mesh with its material
                                     highMesh.material = RMG_Shader.highDetailMaterial;
                                     highMesh.visible = true;
                                     if (lowMesh) lowMesh.visible = false;
                                 } else {
-                                    // Transition ongoing: keep low-detail mesh visible
                                     if (lowMesh) {
                                         lowMesh.material = RMG_Shader.lowDetailMaterial;
                                         lowMesh.visible = true;
@@ -531,7 +511,6 @@
                                     highMesh.visible = false;
                                 }
                             } else {
-                                // If no high-detail mesh exists, queue generation and keep low mesh if available
                                 this.addToHighDetailQueue(group, Math.sqrt(distanceSquared));
                                 if (lowMesh) {
                                     lowMesh.material = RMG_Shader.lowDetailMaterial;
@@ -539,9 +518,7 @@
                                 }
                             }
                         } else {
-                            // Outside high-detail range: reset any transition timer
                             group.userData.highTransitionStart = null;
-                            // Use the low-detail mesh exclusively
                             if (lowMesh) {
                                 lowMesh.material = RMG_Shader.lowDetailMaterial;
                                 lowMesh.visible = true;
@@ -727,12 +704,7 @@
                             .multiply(this.Scale)
                             .add(this.Offset);
             
-                        const chunkDirection = new THREE.Vector3()
-                            .subVectors(worldPosition, offsetCamPos)
-                            .normalize();
-                        if (chunkDirection.dot(this.cameraDirection) < Math.cos(THREE.MathUtils.degToRad(this.backfaceCullingAngle))) {
-                            continue;
-                        }
+                        
             
                         const distanceSquared = this.getSquaredDistanceInChunks(
                             originalCamX,
@@ -827,7 +799,7 @@
                   // You need to determine the appropriate lodFactor here based on your LOD strategy
                   const lodFactor = 2; // Example lodFactor - replace with your logic
                   this.generateChunkLowDetail(group, lodFactor)
-                    .finally(() => this.activeProcesses--);
+                    .then(() => this.activeProcesses--, () => this.activeProcesses--);
                 });
             
                 this.lastProcessTime = now;
@@ -1249,9 +1221,31 @@
                     geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
                     geometry.setIndex(new THREE.BufferAttribute(indices, 1));
             
-                    // Compute normals
-                    geometry.computeVertexNormals();
-            
+                    // Compute normals from heightmap gradient for slope-accurate biome blending
+                    {
+                        const normals = new Float32Array(totalVertices * 3);
+                        let nIdx = 0;
+                        for (let row = 0; row < numRows; row++) {
+                            for (let col = 0; col < numCols; col++) {
+                                const wx = startX + col * lodVertexStep;
+                                const wy = startY + row * lodVertexStep;
+                                const hL = this.getHeight(Math.max(0, wx - 1), wy);
+                                const hR = this.getHeight(wx + 1, wy);
+                                const hD = this.getHeight(wx, Math.max(0, wy - 1));
+                                const hU = this.getHeight(wx, wy + 1);
+                                const nx = hL - hR;
+                                const ny = 2.0;
+                                const nz = hD - hU;
+                                const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+                                normals[nIdx] = nx / len;
+                                normals[nIdx + 1] = ny / len;
+                                normals[nIdx + 2] = nz / len;
+                                nIdx += 3;
+                            }
+                        }
+                        geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+                    }
+
                     // Update triangle count
                     const chunkTriangles = indices.length / 3;
                     this.terrainTriangleCount += chunkTriangles;
@@ -3285,7 +3279,7 @@ private biomeCacheResolution = 5;
 
             
 private processBiomeData() {
-    const image = this.BiomesMap!.image;
+    const image = this.BiomesMap!.image as HTMLImageElement;
     const canvas = document.createElement('canvas');
     canvas.width = image.width;
     canvas.height = image.height;
@@ -3329,8 +3323,9 @@ public getBiomeAtWorldPosition(worldX: number, worldZ: number): string {
   }
   
 private lookupBiomeDirectly(worldX: number, worldZ: number): string {
-    if (!this.biomeData || !this.BiomesMap?.image || 
-        this.BiomesMap.image.width <= 0 || this.BiomesMap.image.height <= 0) {
+    const image = this.BiomesMap?.image as HTMLImageElement | undefined;
+    if (!this.biomeData || !image || 
+        image.width <= 0 || image.height <= 0) {
         return this.biomesConfig.voidBiomeName?.[0] || "Void";
     }
 
@@ -3343,16 +3338,16 @@ private lookupBiomeDirectly(worldX: number, worldZ: number): string {
     const clampedV = Math.max(0, Math.min(1, v));
 
     // Get pixel coordinates
-    const px = Math.floor(clampedU * this.BiomesMap.image.width);
-    const py = Math.floor(clampedV * this.BiomesMap.image.height);
+    const px = Math.floor(clampedU * image.width);
+    const py = Math.floor(clampedV * image.height);
 
     // Check array bounds
-    if (px < 0 || px >= this.BiomesMap.image.width || 
-        py < 0 || py >= this.BiomesMap.image.height) {
+    if (px < 0 || px >= image.width || 
+        py < 0 || py >= image.height) {
         return this.biomesConfig.voidBiomeName?.[0] || "Void";
     }
 
-    const idx = (py * this.BiomesMap.image.width + px) * 4;
+    const idx = (py * image.width + px) * 4;
     const r = this.biomeData[idx];
     const g = this.biomeData[idx + 1];
     const b = this.biomeData[idx + 2];
@@ -3465,7 +3460,7 @@ private lookupBiomeDirectly(worldX: number, worldZ: number): string {
                   @RE.props.num() clip_Height: number = 1; // GPU/Shader polygon discard below this number, wont delete mesh geometry tho
                   @RE.props.text() ___________________________: string = " ";
                   @RE.props.num() priority_UpdateInterval = 250; // ms between priority updates
-                  @RE.props.num() backfaceCullingAngle = 50; // Degree from behind camera to unload chunks
+                  @RE.props.num() backfaceCullingAngle = 135; // Degree from camera forward beyond which chunks get culled
                   @RE.props.num() occlusionAngleThreshold = 45; // Degrees from camera forward to consider for occlusion
                   @RE.props.num() DeactivationDelay = 7000; // ms delay before deactivating chunks behind camera
                   @RE.props.num() occlusionOffset = 2000; // Distance behind camera to start occlusion checks
@@ -3843,7 +3838,7 @@ private lookupBiomeDirectly(worldX: number, worldZ: number): string {
                 public chunksMap = new Map<string, ChunkData>();
                 public previousScale = new THREE.Vector3(1, 1, 1);
                 public previousOffset = new THREE.Vector3(0, 0, 0);
-                public scheduledRemovals = new Map<THREE.Group, NodeJS.Timeout>();
+                public scheduledRemovals = new Map<THREE.Group, ReturnType<typeof setTimeout>>();
                 public removalDelay = 10000; // 10 seconds
                 public scheduledDeactivations = new Map<THREE.Group, number>();
                 public scheduledCleanups = new Map<THREE.Group, number>();
@@ -3870,7 +3865,7 @@ private lookupBiomeDirectly(worldX: number, worldZ: number): string {
             
                 public isGeneratingCollision = false;
                 public isMapLoaded = false;
-                public collisionInitTimeout: NodeJS.Timeout | null = null;
+                public collisionInitTimeout: ReturnType<typeof setTimeout> | null = null;
             
               private distantChunkLoadHeightThreshold: number = 10;
               private occlusionCheckTolerance: number = 1;

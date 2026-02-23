@@ -88,7 +88,6 @@ void main() {
     uniform sampler2D dirtTexture;
     uniform sampler2D snowTexture;
     uniform sampler2D aoTexture;
-    uniform sampler2D heightmapTexture;
     uniform float sandRepeat;
     uniform float grassRepeat;
     uniform float stoneRepeat;
@@ -437,8 +436,9 @@ void main() {
             shadow = getShadow(
                 directionalShadowMap[0],
                 directionalShadow.shadowMapSize,
-                directionalShadow.shadowBias, // Bias from Three.js light
-                directionalShadow.shadowRadius, // Radius from Three.js light
+                directionalShadow.shadowIntensity,
+                directionalShadow.shadowBias,
+                directionalShadow.shadowRadius,
                 vDirectionalShadowCoord[0]
             );
         #endif
@@ -524,16 +524,6 @@ static async createMaterial(isHighDetail: boolean = false): Promise<THREE.Shader
         vertexShader: this.vertexShader,
         fragmentShader: this.fragmentShader,
         uniforms: THREE.UniformsUtils.merge([
-            THREE.UniformsLib.common,
-            THREE.UniformsLib.specularmap,
-            THREE.UniformsLib.envmap,
-            THREE.UniformsLib.aomap,
-            THREE.UniformsLib.lightmap,
-            THREE.UniformsLib.emissivemap,
-            THREE.UniformsLib.bumpmap,
-            THREE.UniformsLib.normalmap,
-            THREE.UniformsLib.displacementmap,
-            THREE.UniformsLib.gradientmap,
             THREE.UniformsLib.fog,
             THREE.UniformsLib.lights,
             {
@@ -546,6 +536,8 @@ static async createMaterial(isHighDetail: boolean = false): Promise<THREE.Shader
                 stoneTexture: { value: RuntimeMapGen.get().stoneTexture || new THREE.Texture() },
                 dirtTexture: { value: RuntimeMapGen.get().dirtTexture || new THREE.Texture() },
                 snowTexture: { value: RuntimeMapGen.get().snowTexture || new THREE.Texture() },
+                aoTexture: { value: new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat) },
+                aoIntensity: { value: 0.0 },
                 sandRepeat: { value: RuntimeMapGen.get().sandScale * textureScaleMultiplier },
                 grassRepeat: { value: RuntimeMapGen.get().grassScale * textureScaleMultiplier },
                 stoneRepeat: { value: RuntimeMapGen.get().stoneScale * textureScaleMultiplier },
@@ -581,7 +573,6 @@ static async createMaterial(isHighDetail: boolean = false): Promise<THREE.Shader
                 snowHeightStart: { value: RuntimeMapGen.get().snowHeightStart },
                 snowHeightEnd: { value: RuntimeMapGen.get().snowHeightEnd },
                 snowBlendSmoothness: { value: RuntimeMapGen.get().snowBlendSmoothness },
-                heightmapTexture: { value: RuntimeMapGen.get().heightmapTexture },
                 heightmapSize: { value: new THREE.Vector2(RuntimeMapGen.get().heightmapSize.width, RuntimeMapGen.get().heightmapSize.height) },
                 terrainScale: { value: RuntimeMapGen.get().Scale },
                 terrainOffset: { value: RuntimeMapGen.get().Offset },
@@ -697,7 +688,6 @@ static updateShaderUniforms() {
         snowHeightStart: RuntimeMapGen.get().snowHeightStart,
         snowHeightEnd: RuntimeMapGen.get().snowHeightEnd,
         snowBlendSmoothness: RuntimeMapGen.get().snowBlendSmoothness,
-        heightmapTexture: RuntimeMapGen.get().heightmapTexture,
         heightmapSize: new THREE.Vector2(RuntimeMapGen.get().heightmapSize.width, RuntimeMapGen.get().heightmapSize.height),
         terrainScale: RuntimeMapGen.get().Scale,
         terrainOffset: RuntimeMapGen.get().Offset,
@@ -811,7 +801,7 @@ static updateShaderUniforms() {
 
 public static highDetailMaterial: THREE.ShaderMaterial;
 public static lowDetailMaterial: THREE.ShaderMaterial;
-public static BackcullingShader: number = 90;
+public static BackcullingShader: number = 180;
 
 
 }
